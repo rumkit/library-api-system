@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-BookLibrary.Seeder-1add3c41-86b2-407b-a399-51d130d84191</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.MongoDB.Driver" Version="13.4.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reuse the domain models, collection names and LibraryDb from the Catalog backend so the
+         seeded schema is guaranteed to match what the service reads. -->
+    <ProjectReference Include="..\BookLibrary.Catalog\BookLibrary.Catalog.csproj" />
+    <ProjectReference Include="..\BookLibrary.ServiceDefaults\BookLibrary.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>
