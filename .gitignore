@@ -3,3 +3,19 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+*.DotSettings.user
+
+# TUnit's test reports
+/TestResults/
+
+# Claude Code personal and temporary files
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Claude internal state and session data
+.claude.json
+.claude.json.backup.*
+security_warnings_*.json
+stats-cache.json
+mcp-needs-auth-cache.json
+history.jsonl
