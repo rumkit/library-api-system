@@ -42,6 +42,13 @@ separate processes so the gRPC boundary is real, not decorative:
 - **Structured logging** via `[LoggerMessage]` source generators; traces/metrics/logs flow to the
   Aspire dashboard and correlate across the REST→gRPC hop.
 
+### Data model
+
+Three MongoDB collections — `Books`, `Users` and `Loans` — in a single `library` database, where a
+`Loan` is the central fact linking a user to a book over time. See
+**[docs/data-schema.md](docs/data-schema.md)** for the full schema: fields, document examples,
+indexes and the modelling decisions behind them.
+
 ---
 
 ## Business rules (what the numbers mean)
@@ -105,7 +112,7 @@ All tests run through `dotnet test` (Microsoft.Testing.Platform) using **TUnit**
 ```bash
 dotnet test                                                  # everything (needs Docker)
 dotnet test --project BookLibrary.Catalog.Tests              # unit + integration + functional
-dotnet test --project BookLibrary.System.Tests               # full-system flows
+dotnet test --project BookLibrary.SystemTests                # full-system flows
 ```
 
 | Tier | Where | Needs Docker | What it covers |
@@ -113,7 +120,7 @@ dotnet test --project BookLibrary.System.Tests               # full-system flows
 | **Unit** | `Catalog.Tests/Unit` | no | Reading-pace branches, the counted-borrow rule, domain→contract mapping. |
 | **Integration** | `Catalog.Tests/Integration` | yes | Aggregation pipelines run directly against a real Mongo (Testcontainers). |
 | **Functional** | `Catalog.Tests/Functional` | yes | The gRPC service surface (validation, status codes, mapping) over an in-memory host + Mongo. |
-| **System** | `System.Tests` | yes | Complete HTTP→gRPC→Mongo user flows via `Aspire.Hosting.Testing`. |
+| **System** | `SystemTests` | yes | Complete HTTP→gRPC→Mongo user flows via `Aspire.Hosting.Testing`. |
 
 Run only the Docker-free unit tests:
 

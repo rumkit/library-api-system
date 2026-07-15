@@ -1,12 +1,22 @@
 <Solution>
-  <Project Path="BookLibrary.Api/BookLibrary.Api.csproj" />
-  <Project Path="BookLibrary.AppHost/BookLibrary.AppHost.csproj" />
-  <Project Path="BookLibrary.Catalog.Tests/BookLibrary.Catalog.Tests.csproj" />
-  <Project Path="BookLibrary.Catalog/BookLibrary.Catalog.csproj" />
-  <Project Path="BookLibrary.Contracts/BookLibrary.Contracts.csproj" />
-  <Project Path="BookLibrary.Seeder/BookLibrary.Seeder.csproj" />
-  <Project Path="BookLibrary.ServiceDefaults/BookLibrary.ServiceDefaults.csproj" />
-  <Project Path="BookLibrary.SystemTests/BookLibrary.SystemTests.csproj" />
-  <Project Path="BookLibrary.WarmUp.Tests/BookLibrary.WarmUp.Tests.csproj" />
-  <Project Path="BookLibrary.WarmUp/BookLibrary.WarmUp.csproj" />
+  <Folder Name="/MainTask/">
+    <Project Path="BookLibrary.Api/BookLibrary.Api.csproj" />
+    <Project Path="BookLibrary.AppHost/BookLibrary.AppHost.csproj" />
+    <Project Path="BookLibrary.Catalog.Tests/BookLibrary.Catalog.Tests.csproj" />
+    <Project Path="BookLibrary.Catalog/BookLibrary.Catalog.csproj" />
+    <Project Path="BookLibrary.Contracts/BookLibrary.Contracts.csproj" />
+    <Project Path="BookLibrary.Seeder/BookLibrary.Seeder.csproj" />
+    <Project Path="BookLibrary.ServiceDefaults/BookLibrary.ServiceDefaults.csproj" />
+    <Project Path="BookLibrary.SystemTests/BookLibrary.SystemTests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="CLAUDE.md" />
+    <File Path="docs/data-schema.md" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/WarmUp/">
+    <Project Path="BookLibrary.WarmUp.Tests/BookLibrary.WarmUp.Tests.csproj" />
+    <Project Path="BookLibrary.WarmUp/BookLibrary.WarmUp.csproj" />
+  </Folder>
 </Solution>
