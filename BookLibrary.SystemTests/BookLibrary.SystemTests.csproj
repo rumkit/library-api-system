@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="TUnit" Version="1.60.0" />
+        <PackageReference Include="Aspire.Hosting.Testing" Version="13.4.6" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\BookLibrary.AppHost\BookLibrary.AppHost.csproj" />
+        <!-- For the fixed sample-data ids the flow assertions check against. -->
+        <ProjectReference Include="..\BookLibrary.Seeder\BookLibrary.Seeder.csproj" />
+    </ItemGroup>
+
+</Project>
