@@ -9,8 +9,8 @@ public class TasksTests
     // ---------------------------------------------------------------------
 
     [Test]
-    [Arguments(1)]    // 2^0
-    [Arguments(2)]    // 2^1
+    [Arguments(1)]
+    [Arguments(2)]
     [Arguments(4)]
     [Arguments(16)]
     [Arguments(1024)]
