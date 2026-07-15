@@ -45,7 +45,7 @@ public class SystemFlowTests
         var result = await GetAsync<List<MostBorrowedDto>>("/insights/most-borrowed?limit=10");
 
         await Assert.That(result[0].Book.Id).IsEqualTo(CleanCodeId);
-        await Assert.That(result[0].BorrowCount).IsEqualTo(4);
+        await Assert.That(result[0].BorrowCount).IsEqualTo(18); // seeded so Clean Code is the runaway top
     }
 
     [Test]
@@ -54,7 +54,7 @@ public class SystemFlowTests
         var result = await GetAsync<List<TopBorrowerDto>>("/insights/top-borrowers?limit=10");
 
         await Assert.That(result[0].User.Id).IsEqualTo(AliceId);
-        await Assert.That(result[0].BorrowCount).IsEqualTo(4);
+        await Assert.That(result[0].BorrowCount).IsEqualTo(20); // seeded so Alice is the runaway top
     }
 
     [Test]

@@ -129,7 +129,9 @@ public class CatalogServiceTests
             await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
             await db.Loans.InsertOneAsync(new Loan
             {
-                Id = Guid.NewGuid(), BookId = B(1), UserId = U(1),
+                Id = Guid.NewGuid(),
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
                 BorrowedAt = Recent, ReturnedAt = Recent.AddDays(10),
             });
         });
@@ -163,7 +165,9 @@ public class CatalogServiceTests
 
     private static Loan Loan(int user, int book) => new()
     {
-        Id = Guid.NewGuid(), UserId = U(user), BookId = B(book),
+        Id = Guid.NewGuid(),
+        UserId = U(user), UserName = $"User {user}",
+        BookId = B(book), BookTitle = $"Book {book}", BookAuthor = "A",
         BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
     };
 }

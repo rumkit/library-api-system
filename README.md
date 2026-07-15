@@ -89,7 +89,9 @@ The Aspire dashboard opens automatically. From it you can reach:
 - **Structured logs, traces and metrics** for every resource, including the REST→gRPC→Mongo trace.
 
 The seeder populates deterministic sample data on first run (it skips if the catalog is already
-populated), covering every insight and every reading-pace branch.
+populated) from embedded JSON files in `BookLibrary.Seeder/Data/` — a curated real-world catalogue of
+100+ books (each with a publication year), 15+ users, and a few hundred loans, hand-shaped to cover
+every insight and every reading-pace branch. See [`docs/data-schema.md`](docs/data-schema.md#sample-data).
 
 ### Example requests
 

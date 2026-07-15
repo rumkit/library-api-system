@@ -23,7 +23,13 @@ public class InsightRepositoryTests
     private static User User(int n) => new() { Id = U(n), Name = $"User {n}" };
 
     private static Loan Loan(int user, int book, DateTime borrowedAt, DateTime? returnedAt) =>
-        new() { Id = Guid.NewGuid(), UserId = U(user), BookId = B(book), BorrowedAt = borrowedAt, ReturnedAt = returnedAt };
+        new()
+        {
+            Id = Guid.NewGuid(),
+            UserId = U(user), UserName = $"User {user}",
+            BookId = B(book), BookTitle = $"Book {book}", BookAuthor = "A",
+            BorrowedAt = borrowedAt, ReturnedAt = returnedAt,
+        };
 
     private async Task<(LibraryDb Db, InsightRepository Repo)> SeedAsync(
         IEnumerable<Book> books, IEnumerable<User> users, IEnumerable<Loan> loans)

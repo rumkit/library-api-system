@@ -39,7 +39,7 @@ dotnet format                     # apply code style / formatting
 dotnet run --project BookLibrary.AppHost   # starts Mongo + Catalog + Seeder + Api via Aspire
 ```
 
-The Aspire dashboard opens automatically; the Scalar API reference is the `api` resource's `/scalar/v1` (the API root redirects there). **Docker is required** — the AppHost runs MongoDB as a container. The seeder loads deterministic sample data on first run and skips if already populated.
+The Aspire dashboard opens automatically; the Scalar API reference is the `api` resource's `/scalar/v1` (the API root redirects there). **Docker is required** — the AppHost runs MongoDB as a container. The seeder loads deterministic sample data (embedded JSON under `BookLibrary.Seeder/Data/`) on first run and skips if already populated.
 
 ### Tests
 
@@ -91,4 +91,4 @@ Main-task idioms:
 
 ## Documentation
 
-- **`docs/data-schema.md` must stay in sync with how data is stored or accessed.** Whenever you change the persistence model or data access — domain/persistence classes (`BookLibrary.Catalog/Domain/`), collection wiring or BSON mapping (`BookLibrary.Catalog/Data/LibraryDb.cs`), indexes (`MongoIndexInitializer.cs`), the aggregation/query pipelines (`InsightRepository.cs`, repositories), or the seeded sample shape (`BookLibrary.Seeder/SampleData.cs`) — review `docs/data-schema.md` and update it if the change affects the documented collections, fields, relationships, indexes, or modelling decisions.
+- **`docs/data-schema.md` must stay in sync with how data is stored or accessed.** Whenever you change the persistence model or data access — domain/persistence classes (`BookLibrary.Catalog/Domain/`), collection wiring or BSON mapping (`BookLibrary.Catalog/Data/LibraryDb.cs`), indexes (`MongoIndexInitializer.cs`), the aggregation/query pipelines (`InsightRepository.cs`, repositories), or the seeded sample shape (`BookLibrary.Seeder/SampleData.cs` and the embedded `BookLibrary.Seeder/Data/*.json`) — review `docs/data-schema.md` and update it if the change affects the documented collections, fields, relationships, indexes, or modelling decisions.

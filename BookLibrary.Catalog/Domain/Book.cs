@@ -19,4 +19,7 @@ public sealed class Book
     public required string Author { get; init; }
 
     public int PageCount { get; init; }
+
+    /// <summary>Year of publication. May be <c>0</c> (unknown).</summary>
+    public int Year { get; init; }
 }

@@ -28,6 +28,7 @@ message Book {
   string title = 2;
   string author = 3;
   int32 page_count = 4;
+  int32 year = 5;
 }
 
 message User {

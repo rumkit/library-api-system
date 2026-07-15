@@ -12,7 +12,13 @@ public class ReadingPaceTests
         new() { Id = Guid.NewGuid(), Title = "T", Author = "A", PageCount = pageCount };
 
     private static Loan Loan(DateTime borrowedAt, DateTime? returnedAt) =>
-        new() { Id = Guid.NewGuid(), BookId = Guid.NewGuid(), UserId = Guid.NewGuid(), BorrowedAt = borrowedAt, ReturnedAt = returnedAt };
+        new()
+        {
+            Id = Guid.NewGuid(),
+            BookId = Guid.NewGuid(), BookTitle = "T", BookAuthor = "A",
+            UserId = Guid.NewGuid(), UserName = "U",
+            BorrowedAt = borrowedAt, ReturnedAt = returnedAt,
+        };
 
     [Test]
     public async Task Compute_WhenNoLoans_ShouldNotBeComputable()

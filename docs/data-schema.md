@@ -16,15 +16,25 @@ are shaped, how they relate, and the deliberate modelling choices behind them.
    Users                         Loans                          Books
  ┌─────────┐   1        many  ┌──────────────┐  many        1  ┌────────────┐
  │ _id     │◀──────────────── │ UserId       │                 │ _id        │
- │ Name    │                  │ BookId       │ ───────────────▶│ Title      │
- └─────────┘                  │ BorrowedAt   │                 │ Author     │
-                              │ ReturnedAt?  │                 │ PageCount  │
-                              └──────────────┘                 └────────────┘
+ │ Name    │                  │ UserName ▪   │                 │ Title      │
+ └─────────┘                  │ BookId       │ ───────────────▶│ Author     │
+                              │ BookTitle  ▪ │                 │ PageCount  │
+                              │ BookAuthor ▪ │                 │ Year       │
+                              │ BorrowedAt   │                 └────────────┘
+                              │ ReturnedAt?  │
+                              └──────────────┘   ▪ = snapshot copied at borrow time
 ```
 
 A **`Loan`** is the central fact: it records that one **`User`** borrowed one **`Book`** at a point
 in time, and — if returned — when it came back. Every insight is derived by aggregating loans and
 joining the referenced book or user.
+
+Each loan also **snapshots** the borrower's name and the book's title/author as they were at borrow
+time (the `▪` fields above). These are historical facts about the event — like `BorrowedAt` — not
+live pointers: they let loan history stay intact and readable after the referenced user or book is
+deleted, and preserve the borrower's name as it was even if the user is later renamed. The `UserId`
+/ `BookId` references are kept alongside as the identity and join key. See
+[Design notes](#design-notes).
 
 References are by id only; there is no database-enforced referential integrity (see
 [Design notes](#design-notes)).
@@ -41,13 +51,15 @@ References are by id only; there is no database-enforced referential integrity (
 | `Title`     | string    | `string` | Required. |
 | `Author`    | string    | `string` | Required. |
 | `PageCount` | int32     | `int`    | Total pages. May be `0` (unknown), which makes reading pace uncomputable for the book. |
+| `Year`      | int32     | `int`    | Year of publication. May be `0` (unknown). |
 
 ```json
 {
   "_id": "00000000-0000-0000-0001-000000000001",
   "Title": "Clean Code",
   "Author": "Robert C. Martin",
-  "PageCount": 464
+  "PageCount": 464,
+  "Year": 2008
 }
 ```
 
@@ -71,7 +83,10 @@ References are by id only; there is no database-enforced referential integrity (
 | ------------ | -------------- | ----------- | ----- |
 | `_id`        | string         | `Guid`      | Primary key. |
 | `BookId`     | string         | `Guid`      | The borrowed book's `_id`. |
+| `BookTitle`  | string         | `string`    | **Snapshot** of the book's `Title` at borrow time (see [Design notes](#design-notes)). |
+| `BookAuthor` | string         | `string`    | **Snapshot** of the book's `Author` at borrow time. |
 | `UserId`     | string         | `Guid`      | The borrowing user's `_id`. |
+| `UserName`   | string         | `string`    | **Snapshot** of the user's `Name` at borrow time. |
 | `BorrowedAt` | date (UTC)     | `DateTime`  | When the book left the shelf. |
 | `ReturnedAt` | date (UTC) \| null | `DateTime?` | When it came back. `null` = **open loan** (still out). |
 
@@ -79,7 +94,10 @@ References are by id only; there is no database-enforced referential integrity (
 {
   "_id": "00000000-0000-0000-0003-000000000001",
   "BookId": "00000000-0000-0000-0001-000000000001",
+  "BookTitle": "Clean Code",
+  "BookAuthor": "Robert C. Martin",
   "UserId": "00000000-0000-0000-0002-000000000001",
+  "UserName": "Alice",
   "BorrowedAt": { "$date": "2026-06-05T00:00:00Z" },
   "ReturnedAt": { "$date": "2026-06-15T00:00:00Z" }
 }
@@ -91,7 +109,10 @@ An **open loan** omits the return date:
 {
   "_id": "00000000-0000-0000-0003-000000000003",
   "BookId": "00000000-0000-0000-0001-000000000003",
+  "BookTitle": "Domain-Driven Design",
+  "BookAuthor": "Eric Evans",
   "UserId": "00000000-0000-0000-0002-000000000001",
+  "UserName": "Alice",
   "BorrowedAt": { "$date": "2026-07-03T00:00:00Z" },
   "ReturnedAt": null
 }
@@ -130,6 +151,21 @@ filter by. Indexes are (idempotently) created on startup by
   does not enforce them. The insight pipelines join with `$lookup` and simply drop loans whose
   referenced book or user no longer exists (via `$unwind`), so a dangling reference degrades
   gracefully rather than erroring.
+- **Loans snapshot the book/user display fields.** Alongside the `BookId`/`UserId` references, a loan
+  stores `BookTitle`, `BookAuthor` and `UserName` as they were **at borrow time**. This is
+  *snapshotting a historical fact* (the same category as `BorrowedAt`), not a denormalized cache:
+  because a loan is an immutable record of a past event, there is nothing to keep in sync. It buys
+  two things the spec calls for — loans are retained and stay readable after their book or user is
+  **deleted**, and a later user **rename** does not rewrite the borrower's name in past loans. The
+  ids remain the identity and the join key; the snapshots are the historical display. Note this is a
+  deliberate, safe use of duplication limited to values that are either immutable (book fields) or
+  whose historical value is the one we want (user name) — general reference data with its own
+  lifecycle is still modelled by id, not copied.
+- **Snapshots do not (yet) change insight semantics.** The insight pipelines still `$lookup` the live
+  `Books`/`Users` collections rather than reading the snapshot fields, so a deleted book or user is
+  still dropped from most-borrowed / top-borrowers (the pre-snapshot behaviour). Switching insights to
+  count deleted entities via their snapshot is a deliberate future decision, not implied by storing
+  the snapshot.
 - **UTC everywhere.** Timestamps are stored and compared in UTC. Time windows are half-open
   `[from, to)` to make them composable without double-counting boundaries.
 - **The "counted borrow" rule is applied at query time, not stored.** Whether a loan counts toward an
@@ -141,7 +177,21 @@ filter by. Indexes are (idempotently) created on startup by
 
 ## Sample data
 
-`BookLibrary.Seeder` populates deterministic, fixed-id documents on first run (covering every insight
-and every reading-pace branch). Ids follow a readable convention — books `…-0001-…`, users
-`…-0002-…`, loans `…-0003-…` — so seeded documents are easy to spot and reference. See
-`BookLibrary.Seeder/SampleData.cs`.
+`BookLibrary.Seeder` populates deterministic, fixed-id documents on first run (skipping if any book
+already exists). The data lives in **embedded JSON files** under `BookLibrary.Seeder/Data/`
+(`books.json`, `users.json`, `loans.json`); `BookLibrary.Seeder/SampleData.cs` deserializes them into
+the domain types and inserts them. The catalogue is a curated real-world set — **100+ books**
+(each with a `Year`), **15+ users**, and a few hundred loans.
+
+- **Ids** follow a readable convention — books `…-0001-…`, users `…-0002-…`, loans `…-0003-…` — so
+  seeded documents are easy to spot and reference.
+- **Loan dates are relative.** `loans.json` stores each loan as an offset (`daysAgo` borrowed +
+  `held` duration: `null` = still open, `0` = same-day/excluded, `>0` = days held) rather than an
+  absolute timestamp. `BuildLoans(now)` resolves them against the seed-run time, so the year-to-date
+  default window is always populated, and copies each loan's book/user snapshot from the seeded
+  books/users so it always matches the catalogue.
+- **The dataset is hand-shaped for stable insight answers** used by the system tests: "Clean Code"
+  is the most-borrowed book, "Alice" the top borrower, Alice has exactly one 10-day / 464-page Clean
+  Code loan (reading pace 46.4), and the curated books at the front (Clean Code, Pragmatic, DDD,
+  Refactoring, Mythical Man-Month, and a zero-page zine) exercise every insight and reading-pace
+  branch.

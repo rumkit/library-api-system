@@ -1,0 +1,751 @@
+[
+  {
+    "id": "00000000-0000-0000-0001-000000000001",
+    "title": "Clean Code",
+    "author": "Robert C. Martin",
+    "pageCount": 464,
+    "year": 2008
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000002",
+    "title": "The Pragmatic Programmer",
+    "author": "Andrew Hunt",
+    "pageCount": 352,
+    "year": 1999
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000003",
+    "title": "Domain-Driven Design",
+    "author": "Eric Evans",
+    "pageCount": 560,
+    "year": 2003
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000004",
+    "title": "Refactoring",
+    "author": "Martin Fowler",
+    "pageCount": 448,
+    "year": 1999
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000005",
+    "title": "The Mythical Man-Month",
+    "author": "Fred Brooks",
+    "pageCount": 322,
+    "year": 1975
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000006",
+    "title": "Uncatalogued Zine",
+    "author": "Anonymous",
+    "pageCount": 0,
+    "year": 0
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000007",
+    "title": "Code Complete",
+    "author": "Steve McConnell",
+    "pageCount": 960,
+    "year": 2004
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000008",
+    "title": "Introduction to Algorithms",
+    "author": "Thomas H. Cormen",
+    "pageCount": 1312,
+    "year": 2009
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000009",
+    "title": "The Art of Computer Programming, Vol. 1",
+    "author": "Donald E. Knuth",
+    "pageCount": 672,
+    "year": 1997
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000010",
+    "title": "Structure and Interpretation of Computer Programs",
+    "author": "Harold Abelson",
+    "pageCount": 657,
+    "year": 1996
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000011",
+    "title": "Design Patterns",
+    "author": "Erich Gamma",
+    "pageCount": 395,
+    "year": 1994
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000012",
+    "title": "Working Effectively with Legacy Code",
+    "author": "Michael C. Feathers",
+    "pageCount": 456,
+    "year": 2004
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000013",
+    "title": "The Clean Coder",
+    "author": "Robert C. Martin",
+    "pageCount": 256,
+    "year": 2011
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000014",
+    "title": "Clean Architecture",
+    "author": "Robert C. Martin",
+    "pageCount": 432,
+    "year": 2017
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000015",
+    "title": "Patterns of Enterprise Application Architecture",
+    "author": "Martin Fowler",
+    "pageCount": 560,
+    "year": 2002
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000016",
+    "title": "Test-Driven Development: By Example",
+    "author": "Kent Beck",
+    "pageCount": 240,
+    "year": 2002
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000017",
+    "title": "Extreme Programming Explained",
+    "author": "Kent Beck",
+    "pageCount": 224,
+    "year": 2004
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000018",
+    "title": "Continuous Delivery",
+    "author": "Jez Humble",
+    "pageCount": 512,
+    "year": 2010
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000019",
+    "title": "The Phoenix Project",
+    "author": "Gene Kim",
+    "pageCount": 432,
+    "year": 2013
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000020",
+    "title": "The DevOps Handbook",
+    "author": "Gene Kim",
+    "pageCount": 480,
+    "year": 2016
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000021",
+    "title": "Site Reliability Engineering",
+    "author": "Betsy Beyer",
+    "pageCount": 552,
+    "year": 2016
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000022",
+    "title": "Release It!",
+    "author": "Michael T. Nygard",
+    "pageCount": 378,
+    "year": 2007
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000023",
+    "title": "Building Microservices",
+    "author": "Sam Newman",
+    "pageCount": 280,
+    "year": 2015
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000024",
+    "title": "Designing Data-Intensive Applications",
+    "author": "Martin Kleppmann",
+    "pageCount": 616,
+    "year": 2017
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000025",
+    "title": "The Passionate Programmer",
+    "author": "Chad Fowler",
+    "pageCount": 232,
+    "year": 2009
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000026",
+    "title": "Soft Skills",
+    "author": "John Sonmez",
+    "pageCount": 504,
+    "year": 2014
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000027",
+    "title": "Cracking the Coding Interview",
+    "author": "Gayle Laakmann McDowell",
+    "pageCount": 687,
+    "year": 2015
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000028",
+    "title": "Programming Pearls",
+    "author": "Jon Bentley",
+    "pageCount": 256,
+    "year": 1999
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000029",
+    "title": "The C Programming Language",
+    "author": "Brian W. Kernighan",
+    "pageCount": 272,
+    "year": 1988
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000030",
+    "title": "The Go Programming Language",
+    "author": "Alan A. A. Donovan",
+    "pageCount": 380,
+    "year": 2015
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000031",
+    "title": "Effective Java",
+    "author": "Joshua Bloch",
+    "pageCount": 416,
+    "year": 2018
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000032",
+    "title": "Java Concurrency in Practice",
+    "author": "Brian Goetz",
+    "pageCount": 384,
+    "year": 2006
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000033",
+    "title": "C# in Depth",
+    "author": "Jon Skeet",
+    "pageCount": 528,
+    "year": 2019
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000034",
+    "title": "CLR via C#",
+    "author": "Jeffrey Richter",
+    "pageCount": 896,
+    "year": 2012
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000035",
+    "title": "Pro ASP.NET Core",
+    "author": "Adam Freeman",
+    "pageCount": 1080,
+    "year": 2022
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000036",
+    "title": "Dependency Injection Principles, Practices, and Patterns",
+    "author": "Mark Seemann",
+    "pageCount": 552,
+    "year": 2019
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000037",
+    "title": "Concurrency in C# Cookbook",
+    "author": "Stephen Cleary",
+    "pageCount": 208,
+    "year": 2019
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000038",
+    "title": "Fluent Python",
+    "author": "Luciano Ramalho",
+    "pageCount": 792,
+    "year": 2015
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000039",
+    "title": "Python Crash Course",
+    "author": "Eric Matthes",
+    "pageCount": 544,
+    "year": 2019
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000040",
+    "title": "Automate the Boring Stuff with Python",
+    "author": "Al Sweigart",
+    "pageCount": 504,
+    "year": 2019
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000041",
+    "title": "Eloquent JavaScript",
+    "author": "Marijn Haverbeke",
+    "pageCount": 472,
+    "year": 2018
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000042",
+    "title": "JavaScript: The Good Parts",
+    "author": "Douglas Crockford",
+    "pageCount": 176,
+    "year": 2008
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000043",
+    "title": "You Don't Know JS",
+    "author": "Kyle Simpson",
+    "pageCount": 278,
+    "year": 2015
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000044",
+    "title": "Learning React",
+    "author": "Alex Banks",
+    "pageCount": 310,
+    "year": 2020
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000045",
+    "title": "The Rust Programming Language",
+    "author": "Steve Klabnik",
+    "pageCount": 560,
+    "year": 2019
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000046",
+    "title": "Programming Rust",
+    "author": "Jim Blandy",
+    "pageCount": 736,
+    "year": 2021
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000047",
+    "title": "Grokking Algorithms",
+    "author": "Aditya Bhargava",
+    "pageCount": 256,
+    "year": 2016
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000048",
+    "title": "The Algorithm Design Manual",
+    "author": "Steven S. Skiena",
+    "pageCount": 748,
+    "year": 2008
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000049",
+    "title": "Compilers: Principles, Techniques, and Tools",
+    "author": "Alfred V. Aho",
+    "pageCount": 1009,
+    "year": 2006
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000050",
+    "title": "Operating System Concepts",
+    "author": "Abraham Silberschatz",
+    "pageCount": 976,
+    "year": 2018
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000051",
+    "title": "Computer Networks",
+    "author": "Andrew S. Tanenbaum",
+    "pageCount": 960,
+    "year": 2010
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000052",
+    "title": "TCP/IP Illustrated, Vol. 1",
+    "author": "W. Richard Stevens",
+    "pageCount": 1056,
+    "year": 2011
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000053",
+    "title": "Database System Concepts",
+    "author": "Abraham Silberschatz",
+    "pageCount": 1376,
+    "year": 2019
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000054",
+    "title": "Refactoring to Patterns",
+    "author": "Joshua Kerievsky",
+    "pageCount": 400,
+    "year": 2004
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000055",
+    "title": "Domain-Driven Design Distilled",
+    "author": "Vaughn Vernon",
+    "pageCount": 176,
+    "year": 2016
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000056",
+    "title": "Implementing Domain-Driven Design",
+    "author": "Vaughn Vernon",
+    "pageCount": 656,
+    "year": 2013
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000057",
+    "title": "Enterprise Integration Patterns",
+    "author": "Gregor Hohpe",
+    "pageCount": 736,
+    "year": 2003
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000058",
+    "title": "To Kill a Mockingbird",
+    "author": "Harper Lee",
+    "pageCount": 336,
+    "year": 1960
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000059",
+    "title": "1984",
+    "author": "George Orwell",
+    "pageCount": 328,
+    "year": 1949
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000060",
+    "title": "Animal Farm",
+    "author": "George Orwell",
+    "pageCount": 112,
+    "year": 1945
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000061",
+    "title": "Brave New World",
+    "author": "Aldous Huxley",
+    "pageCount": 288,
+    "year": 1932
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000062",
+    "title": "Fahrenheit 451",
+    "author": "Ray Bradbury",
+    "pageCount": 256,
+    "year": 1953
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000063",
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "pageCount": 180,
+    "year": 1925
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000064",
+    "title": "Moby-Dick",
+    "author": "Herman Melville",
+    "pageCount": 720,
+    "year": 1851
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000065",
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "pageCount": 432,
+    "year": 1813
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000066",
+    "title": "Jane Eyre",
+    "author": "Charlotte Brontë",
+    "pageCount": 532,
+    "year": 1847
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000067",
+    "title": "Wuthering Heights",
+    "author": "Emily Brontë",
+    "pageCount": 416,
+    "year": 1847
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000068",
+    "title": "Crime and Punishment",
+    "author": "Fyodor Dostoevsky",
+    "pageCount": 671,
+    "year": 1866
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000069",
+    "title": "The Brothers Karamazov",
+    "author": "Fyodor Dostoevsky",
+    "pageCount": 824,
+    "year": 1880
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000070",
+    "title": "War and Peace",
+    "author": "Leo Tolstoy",
+    "pageCount": 1225,
+    "year": 1869
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000071",
+    "title": "Anna Karenina",
+    "author": "Leo Tolstoy",
+    "pageCount": 864,
+    "year": 1877
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000072",
+    "title": "The Catcher in the Rye",
+    "author": "J. D. Salinger",
+    "pageCount": 277,
+    "year": 1951
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000073",
+    "title": "Lord of the Flies",
+    "author": "William Golding",
+    "pageCount": 224,
+    "year": 1954
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000074",
+    "title": "The Hobbit",
+    "author": "J. R. R. Tolkien",
+    "pageCount": 310,
+    "year": 1937
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000075",
+    "title": "The Fellowship of the Ring",
+    "author": "J. R. R. Tolkien",
+    "pageCount": 423,
+    "year": 1954
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000076",
+    "title": "The Two Towers",
+    "author": "J. R. R. Tolkien",
+    "pageCount": 352,
+    "year": 1954
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000077",
+    "title": "The Return of the King",
+    "author": "J. R. R. Tolkien",
+    "pageCount": 416,
+    "year": 1955
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000078",
+    "title": "Harry Potter and the Philosopher's Stone",
+    "author": "J. K. Rowling",
+    "pageCount": 223,
+    "year": 1997
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000079",
+    "title": "A Game of Thrones",
+    "author": "George R. R. Martin",
+    "pageCount": 694,
+    "year": 1996
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000080",
+    "title": "The Name of the Wind",
+    "author": "Patrick Rothfuss",
+    "pageCount": 662,
+    "year": 2007
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000081",
+    "title": "Dune",
+    "author": "Frank Herbert",
+    "pageCount": 412,
+    "year": 1965
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000082",
+    "title": "Foundation",
+    "author": "Isaac Asimov",
+    "pageCount": 244,
+    "year": 1951
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000083",
+    "title": "I, Robot",
+    "author": "Isaac Asimov",
+    "pageCount": 224,
+    "year": 1950
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000084",
+    "title": "Neuromancer",
+    "author": "William Gibson",
+    "pageCount": 271,
+    "year": 1984
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000085",
+    "title": "Snow Crash",
+    "author": "Neal Stephenson",
+    "pageCount": 480,
+    "year": 1992
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000086",
+    "title": "The Hitchhiker's Guide to the Galaxy",
+    "author": "Douglas Adams",
+    "pageCount": 224,
+    "year": 1979
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000087",
+    "title": "Ender's Game",
+    "author": "Orson Scott Card",
+    "pageCount": 324,
+    "year": 1985
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000088",
+    "title": "The Road",
+    "author": "Cormac McCarthy",
+    "pageCount": 287,
+    "year": 2006
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000089",
+    "title": "Blood Meridian",
+    "author": "Cormac McCarthy",
+    "pageCount": 337,
+    "year": 1985
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000090",
+    "title": "One Hundred Years of Solitude",
+    "author": "Gabriel García Márquez",
+    "pageCount": 417,
+    "year": 1967
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000091",
+    "title": "The Kite Runner",
+    "author": "Khaled Hosseini",
+    "pageCount": 371,
+    "year": 2003
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000092",
+    "title": "Life of Pi",
+    "author": "Yann Martel",
+    "pageCount": 460,
+    "year": 2001
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000093",
+    "title": "The Alchemist",
+    "author": "Paulo Coelho",
+    "pageCount": 197,
+    "year": 1988
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000094",
+    "title": "Slaughterhouse-Five",
+    "author": "Kurt Vonnegut",
+    "pageCount": 275,
+    "year": 1969
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000095",
+    "title": "Catch-22",
+    "author": "Joseph Heller",
+    "pageCount": 453,
+    "year": 1961
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000096",
+    "title": "The Grapes of Wrath",
+    "author": "John Steinbeck",
+    "pageCount": 464,
+    "year": 1939
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000097",
+    "title": "Of Mice and Men",
+    "author": "John Steinbeck",
+    "pageCount": 107,
+    "year": 1937
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000098",
+    "title": "Frankenstein",
+    "author": "Mary Shelley",
+    "pageCount": 280,
+    "year": 1818
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000099",
+    "title": "Dracula",
+    "author": "Bram Stoker",
+    "pageCount": 418,
+    "year": 1897
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000100",
+    "title": "The Picture of Dorian Gray",
+    "author": "Oscar Wilde",
+    "pageCount": 254,
+    "year": 1890
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000101",
+    "title": "Sapiens: A Brief History of Humankind",
+    "author": "Yuval Noah Harari",
+    "pageCount": 443,
+    "year": 2011
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000102",
+    "title": "Thinking, Fast and Slow",
+    "author": "Daniel Kahneman",
+    "pageCount": 499,
+    "year": 2011
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000103",
+    "title": "Guns, Germs, and Steel",
+    "author": "Jared Diamond",
+    "pageCount": 480,
+    "year": 1997
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000104",
+    "title": "A Brief History of Time",
+    "author": "Stephen Hawking",
+    "pageCount": 212,
+    "year": 1988
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000105",
+    "title": "The Selfish Gene",
+    "author": "Richard Dawkins",
+    "pageCount": 360,
+    "year": 1976
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000106",
+    "title": "Freakonomics",
+    "author": "Steven D. Levitt",
+    "pageCount": 336,
+    "year": 2005
+  },
+  {
+    "id": "00000000-0000-0000-0001-000000000107",
+    "title": "Outliers",
+    "author": "Malcolm Gladwell",
+    "pageCount": 309,
+    "year": 2008
+  }
+]

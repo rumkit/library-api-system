@@ -8,7 +8,7 @@ namespace BookLibrary.Api.Contracts;
 internal static class ContractMapping
 {
     public static BookDto ToDto(this Proto.Book book) =>
-        new(Guid.Parse(book.Id), book.Title, book.Author, book.PageCount);
+        new(Guid.Parse(book.Id), book.Title, book.Author, book.PageCount, book.Year);
 
     public static UserDto ToDto(this Proto.User user) =>
         new(Guid.Parse(user.Id), user.Name);

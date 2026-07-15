@@ -12,7 +12,7 @@ public class CatalogMapperTests
     public async Task ToContract_WhenMappingBook_ShouldCopyFieldsAndStringifyId()
     {
         var id = Guid.NewGuid();
-        var book = new Book { Id = id, Title = "Clean Code", Author = "Martin", PageCount = 464 };
+        var book = new Book { Id = id, Title = "Clean Code", Author = "Martin", PageCount = 464, Year = 2008 };
 
         var contract = _mapper.ToContract(book);
 
@@ -20,6 +20,7 @@ public class CatalogMapperTests
         await Assert.That(contract.Title).IsEqualTo("Clean Code");
         await Assert.That(contract.Author).IsEqualTo("Martin");
         await Assert.That(contract.PageCount).IsEqualTo(464);
+        await Assert.That(contract.Year).IsEqualTo(2008);
     }
 
     [Test]

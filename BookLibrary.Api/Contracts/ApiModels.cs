@@ -3,7 +3,7 @@ namespace BookLibrary.Api.Contracts;
 // Small, explicit REST response shapes. Mapping proto messages onto these keeps the JSON clean
 // (plain DateTime, no protobuf machinery) and gives the HTTP surface a contract of its own.
 
-public sealed record BookDto(Guid Id, string Title, string Author, int PageCount);
+public sealed record BookDto(Guid Id, string Title, string Author, int PageCount, int Year);
 
 public sealed record UserDto(Guid Id, string Name);
 

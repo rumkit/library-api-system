@@ -12,6 +12,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Deterministic demo data, embedded so it is readable both when the seeder runs and from
+         BookLibrary.SystemTests (which reads SampleData) regardless of working directory. -->
+    <EmbeddedResource Include="Data\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Reuse the domain models, collection names and LibraryDb from the Catalog backend so the
          seeded schema is guaranteed to match what the service reads. -->
     <ProjectReference Include="..\BookLibrary.Catalog\BookLibrary.Catalog.csproj" />
