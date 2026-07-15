@@ -1,0 +1,18 @@
+namespace BookLibrary.Api.Contracts;
+
+// Small, explicit REST response shapes. Mapping proto messages onto these keeps the JSON clean
+// (plain DateTime, no protobuf machinery) and gives the HTTP surface a contract of its own.
+
+public sealed record BookDto(Guid Id, string Title, string Author, int PageCount);
+
+public sealed record UserDto(Guid Id, string Name);
+
+public sealed record MostBorrowedBookDto(BookDto Book, long BorrowCount);
+
+public sealed record TopBorrowerDto(UserDto User, long BorrowCount);
+
+public sealed record CoBorrowedBookDto(BookDto Book, long CoBorrowerCount);
+
+/// <summary>Reading-pace estimate. <see cref="PagesPerDay"/> is null when the estimate could
+/// not be computed; <see cref="Reason"/> then explains why.</summary>
+public sealed record ReadingPaceDto(bool Computable, double? PagesPerDay, string? Reason);
