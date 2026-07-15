@@ -1,0 +1,22 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>5e17ab62-7b50-40d3-bea3-59eb43c2116f</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.4.6" />
+    <PackageReference Include="Aspire.Hosting.MongoDB" Version="13.4.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BookLibrary.Catalog\BookLibrary.Catalog.csproj" />
+    <ProjectReference Include="..\BookLibrary.Api\BookLibrary.Api.csproj" />
+    <ProjectReference Include="..\BookLibrary.Seeder\BookLibrary.Seeder.csproj" />
+  </ItemGroup>
+
+</Project>
