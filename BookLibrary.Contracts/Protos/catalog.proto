@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "BookLibrary.Contracts";
+
+package catalog;
+
+// The internal catalog service. Consumed by the REST edge (BookLibrary.Api)
+// over gRPC; implemented by the domain/persistence backend (BookLibrary.Catalog).
+service CatalogService {
+  rpc GetBook (GetBookRequest) returns (Book);
+  rpc ListBooks (ListBooksRequest) returns (ListBooksResponse);
+  rpc GetUser (GetUserRequest) returns (User);
+
+  // Inventory insight: what are the most borrowed books?
+  rpc GetMostBorrowedBooks (GetMostBorrowedBooksRequest) returns (MostBorrowedBooksResponse);
+  // User activity: which users borrowed the most within a window?
+  rpc GetTopBorrowers (GetTopBorrowersRequest) returns (TopBorrowersResponse);
+  // User activity: estimate a user's reading pace (pages/day) for a book.
+  rpc GetReadingPace (GetReadingPaceRequest) returns (ReadingPaceResponse);
+  // Borrowing pattern: what else did borrowers of a given book borrow?
+  rpc GetCoBorrowedBooks (GetCoBorrowedBooksRequest) returns (CoBorrowedBooksResponse);
+}
+
+message Book {
+  string id = 1;
+  string title = 2;
+  string author = 3;
+  int32 page_count = 4;
+}
+
+message User {
+  string id = 1;
+  string name = 2;
+}
+
+message GetBookRequest {
+  string id = 1;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message ListBooksRequest {
+  int32 limit = 1;
+  int32 skip = 2;
+}
+
+message ListBooksResponse {
+  repeated Book books = 1;
+}
+
+message GetMostBorrowedBooksRequest {
+  int32 limit = 1;
+  // Optional half-open [from, to) window over BorrowedAt.
+  optional google.protobuf.Timestamp from = 2;
+  optional google.protobuf.Timestamp to = 3;
+}
+
+message BorrowedBook {
+  Book book = 1;
+  int64 borrow_count = 2;
+}
+
+message MostBorrowedBooksResponse {
+  repeated BorrowedBook books = 1;
+}
+
+message GetTopBorrowersRequest {
+  // Optional half-open [from, to) window over BorrowedAt.
+  // Defaults to [Jan 1 current year UTC, now) when omitted.
+  optional google.protobuf.Timestamp from = 1;
+  optional google.protobuf.Timestamp to = 2;
+  int32 limit = 3;
+}
+
+message Borrower {
+  User user = 1;
+  int64 borrow_count = 2;
+}
+
+message TopBorrowersResponse {
+  repeated Borrower borrowers = 1;
+}
+
+message GetReadingPaceRequest {
+  string user_id = 1;
+  string book_id = 2;
+}
+
+message ReadingPaceResponse {
+  // Pages per day; only meaningful when computable is true.
+  double pages_per_day = 1;
+  bool computable = 2;
+  // Human-readable explanation when not computable
+  // (e.g. open loan, sub-1-day return, non-positive page count, no matching loan).
+  string reason = 3;
+}
+
+message GetCoBorrowedBooksRequest {
+  string book_id = 1;
+  int32 limit = 2;
+}
+
+message CoBorrowedBook {
+  Book book = 1;
+  // Distinct users who borrowed both this book and the requested one.
+  int64 co_borrower_count = 2;
+}
+
+message CoBorrowedBooksResponse {
+  repeated CoBorrowedBook books = 1;
+}
