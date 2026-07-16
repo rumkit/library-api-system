@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.80.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.8.0" />
     <!-- Pin above the vulnerable 2.0.0 pulled transitively by the OpenAPI/Scalar stack (NU1903). -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.10.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.12" />
@@ -17,6 +18,10 @@
   <ItemGroup>
     <ProjectReference Include="..\BookLibrary.Contracts\BookLibrary.Contracts.csproj" />
     <ProjectReference Include="..\BookLibrary.ServiceDefaults\BookLibrary.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BookLibrary.Api.Tests" />
   </ItemGroup>
 
 </Project>

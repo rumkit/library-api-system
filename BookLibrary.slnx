@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/MainTask/">
     <Project Path="BookLibrary.Api/BookLibrary.Api.csproj" />
+    <Project Path="BookLibrary.Api.Tests/BookLibrary.Api.Tests.csproj" />
     <Project Path="BookLibrary.AppHost/BookLibrary.AppHost.csproj" />
     <Project Path="BookLibrary.Catalog.Tests/BookLibrary.Catalog.Tests.csproj" />
     <Project Path="BookLibrary.Catalog/BookLibrary.Catalog.csproj" />

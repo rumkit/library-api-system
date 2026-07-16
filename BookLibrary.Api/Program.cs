@@ -1,5 +1,7 @@
 using BookLibrary.Api;
+using BookLibrary.Api.Caching;
 using BookLibrary.Contracts;
+using Microsoft.Extensions.Caching.Hybrid;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +11,13 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<RpcExceptionHandler>();
 builder.Services.AddOpenApi();
+
+// Cache the expensive insight aggregations at the REST edge. HybridCache runs an in-memory tier
+// today; adding a distributed L2 (e.g. Redis) later is a registration-only change with no call-site
+// edits. Per-endpoint TTLs come from CatalogCacheOptions; the default here is a backstop.
+builder.Services.Configure<CatalogCacheOptions>(builder.Configuration.GetSection("CatalogCache"));
+builder.Services.AddHybridCache(options =>
+    options.DefaultEntryOptions = new HybridCacheEntryOptions { Expiration = TimeSpan.FromMinutes(5) });
 
 // Typed gRPC client for the Catalog backend. The host "catalog" is rewritten to the real
 // endpoint by the Aspire service-discovery handler (added via ServiceDefaults); the scheme must

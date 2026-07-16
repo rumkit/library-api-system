@@ -39,6 +39,11 @@ separate processes so the gRPC boundary is real, not decorative:
   write volume a 16-byte binary representation would be preferred; the perf delta is irrelevant here.
 - **Insights computed on demand** via Mongo aggregation pipelines with in-database `$lookup` joins —
   no background worker, no materialized views. Each insight is a single round trip.
+- **Insight responses cached at the REST edge** with **`HybridCache`** — an in-memory tier today;
+  adding a distributed L2 (e.g. Redis) later is a registration-only change with no call-site edits.
+  Expiry is TTL-based (the API is read-only, so there are no writes to invalidate on) and tunable via
+  the `CatalogCache` config section; entries are tagged `insights` for future tag-based eviction.
+  Top-borrowers uses a shorter TTL because an omitted window drifts with `now`.
 - **Structured logging** via `[LoggerMessage]` source generators; traces/metrics/logs flow to the
   Aspire dashboard and correlate across the REST→gRPC hop.
 

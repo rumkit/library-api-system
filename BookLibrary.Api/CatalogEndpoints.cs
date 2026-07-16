@@ -1,5 +1,8 @@
+using BookLibrary.Api.Caching;
 using BookLibrary.Api.Contracts;
 using BookLibrary.Contracts;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Options;
 
 namespace BookLibrary.Api;
 
@@ -11,6 +14,11 @@ namespace BookLibrary.Api;
 public static class CatalogEndpoints
 {
     private const int DefaultLimit = 20;
+
+    // Every insight entry carries the same tag so a future write path can evict them in one call.
+    private static readonly string[] InsightsTags = [CatalogCacheKeys.InsightsTag];
+
+    private static HybridCacheEntryOptions Entry(TimeSpan expiration) => new() { Expiration = expiration };
 
     public static IEndpointRouteBuilder MapCatalogEndpoints(this IEndpointRouteBuilder app)
     {
@@ -49,33 +57,57 @@ public static class CatalogEndpoints
 
         insights.MapGet("/most-borrowed", async (
             CatalogService.CatalogServiceClient client,
+            HybridCache cache,
+            IOptions<CatalogCacheOptions> cacheOptions,
             CancellationToken ct,
             int limit = DefaultLimit,
             DateTime? from = null,
             DateTime? to = null) =>
         {
-            var request = new GetMostBorrowedBooksRequest { Limit = limit };
-            if (from.ToTimestamp() is { } f) request.From = f;
-            if (to.ToTimestamp() is { } t) request.To = t;
+            var books = await cache.GetOrCreateAsync(
+                CatalogCacheKeys.MostBorrowed(limit, from, to),
+                (client, limit, from, to),
+                static async (s, ct) =>
+                {
+                    var request = new GetMostBorrowedBooksRequest { Limit = s.limit };
+                    if (s.from.ToTimestamp() is { } f) request.From = f;
+                    if (s.to.ToTimestamp() is { } t) request.To = t;
 
-            var reply = await client.GetMostBorrowedBooksAsync(request, cancellationToken: ct);
-            return Results.Ok(reply.Books.Select(b => b.ToDto()));
+                    var reply = await s.client.GetMostBorrowedBooksAsync(request, cancellationToken: ct);
+                    return reply.Books.Select(b => b.ToDto()).ToList();
+                },
+                Entry(cacheOptions.Value.DefaultExpiration),
+                tags: InsightsTags,
+                cancellationToken: ct);
+            return Results.Ok(books);
         })
         .WithSummary("Most borrowed books, optionally within a [from, to) window.");
 
         insights.MapGet("/top-borrowers", async (
             CatalogService.CatalogServiceClient client,
+            HybridCache cache,
+            IOptions<CatalogCacheOptions> cacheOptions,
             CancellationToken ct,
             int limit = DefaultLimit,
             DateTime? from = null,
             DateTime? to = null) =>
         {
-            var request = new GetTopBorrowersRequest { Limit = limit };
-            if (from.ToTimestamp() is { } f) request.From = f;
-            if (to.ToTimestamp() is { } t) request.To = t;
+            var borrowers = await cache.GetOrCreateAsync(
+                CatalogCacheKeys.TopBorrowers(limit, from, to),
+                (client, limit, from, to),
+                static async (s, ct) =>
+                {
+                    var request = new GetTopBorrowersRequest { Limit = s.limit };
+                    if (s.from.ToTimestamp() is { } f) request.From = f;
+                    if (s.to.ToTimestamp() is { } t) request.To = t;
 
-            var reply = await client.GetTopBorrowersAsync(request, cancellationToken: ct);
-            return Results.Ok(reply.Borrowers.Select(b => b.ToDto()));
+                    var reply = await s.client.GetTopBorrowersAsync(request, cancellationToken: ct);
+                    return reply.Borrowers.Select(b => b.ToDto()).ToList();
+                },
+                Entry(cacheOptions.Value.TopBorrowersExpiration),
+                tags: InsightsTags,
+                cancellationToken: ct);
+            return Results.Ok(borrowers);
         })
         .WithSummary("Top borrowers within a [from, to) window (defaults to year-to-date).");
 
@@ -83,25 +115,49 @@ public static class CatalogEndpoints
             Guid userId,
             Guid bookId,
             CatalogService.CatalogServiceClient client,
+            HybridCache cache,
+            IOptions<CatalogCacheOptions> cacheOptions,
             CancellationToken ct) =>
         {
-            var reply = await client.GetReadingPaceAsync(
-                new GetReadingPaceRequest { UserId = userId.ToString(), BookId = bookId.ToString() },
+            var pace = await cache.GetOrCreateAsync(
+                CatalogCacheKeys.ReadingPace(userId, bookId),
+                (client, userId, bookId),
+                static async (s, ct) =>
+                {
+                    var reply = await s.client.GetReadingPaceAsync(
+                        new GetReadingPaceRequest { UserId = s.userId.ToString(), BookId = s.bookId.ToString() },
+                        cancellationToken: ct);
+                    return reply.ToDto();
+                },
+                Entry(cacheOptions.Value.DefaultExpiration),
+                tags: InsightsTags,
                 cancellationToken: ct);
-            return Results.Ok(reply.ToDto());
+            return Results.Ok(pace);
         })
         .WithSummary("Estimate a user's reading pace (pages/day) for a book.");
 
         insights.MapGet("/co-borrowed/{bookId:guid}", async (
             Guid bookId,
             CatalogService.CatalogServiceClient client,
+            HybridCache cache,
+            IOptions<CatalogCacheOptions> cacheOptions,
             CancellationToken ct,
             int limit = DefaultLimit) =>
         {
-            var reply = await client.GetCoBorrowedBooksAsync(
-                new GetCoBorrowedBooksRequest { BookId = bookId.ToString(), Limit = limit },
+            var books = await cache.GetOrCreateAsync(
+                CatalogCacheKeys.CoBorrowed(bookId, limit),
+                (client, bookId, limit),
+                static async (s, ct) =>
+                {
+                    var reply = await s.client.GetCoBorrowedBooksAsync(
+                        new GetCoBorrowedBooksRequest { BookId = s.bookId.ToString(), Limit = s.limit },
+                        cancellationToken: ct);
+                    return reply.Books.Select(b => b.ToDto()).ToList();
+                },
+                Entry(cacheOptions.Value.DefaultExpiration),
+                tags: InsightsTags,
                 cancellationToken: ct);
-            return Results.Ok(reply.Books.Select(b => b.ToDto()));
+            return Results.Ok(books);
         })
         .WithSummary("Books co-borrowed by users who borrowed the given book.");
 
