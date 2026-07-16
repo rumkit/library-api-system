@@ -1,5 +1,6 @@
 using BookLibrary.Api;
 using BookLibrary.Api.Caching;
+using BookLibrary.Api.Contracts;
 using BookLibrary.Contracts;
 using Microsoft.Extensions.Caching.Hybrid;
 using Scalar.AspNetCore;
@@ -10,7 +11,38 @@ builder.AddServiceDefaults();
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<RpcExceptionHandler>();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    // UtcDateTime is a wrapper struct (for server-timezone-independent binding); without this,
+    // schema generation reflects its shape and emits an empty object schema. Render it as the
+    // plain ISO-8601 UTC string it actually serializes to.
+    options.AddSchemaTransformer((schema, context, _) =>
+    {
+        // Body-bound `UtcDateTime?` fields resolve to a $ref against the "UtcDateTime" component
+        // schema rather than getting their own transform call, so patch that component directly.
+        if (context.JsonTypeInfo.Type == typeof(UtcDateTime)
+            || context.JsonTypeInfo.Type == typeof(UtcDateTime?))
+        {
+            var components = context.Document?.Components?.Schemas;
+            Microsoft.OpenApi.OpenApiSchema? target = schema;
+            if (context.JsonTypeInfo.Type != typeof(UtcDateTime)
+                && components is not null
+                && components.TryGetValue("UtcDateTime", out var refSchema))
+            {
+                target = refSchema as Microsoft.OpenApi.OpenApiSchema;
+            }
+
+            if (target is not null)
+            {
+                target.Type = Microsoft.OpenApi.JsonSchemaType.String;
+                target.Format = "date-time";
+                target.Properties?.Clear();
+            }
+        }
+
+        return Task.CompletedTask;
+    });
+});
 
 // Cache the expensive insight aggregations at the REST edge. HybridCache runs an in-memory tier
 // today; adding a distributed L2 (e.g. Redis) later is a registration-only change with no call-site

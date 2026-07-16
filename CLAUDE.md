@@ -14,6 +14,7 @@ BookLibrary is a .NET 10 solution with two parts:
 | Project | Role |
 | --- | --- |
 | `BookLibrary.Api` | REST edge (minimal APIs + Scalar). HTTP concerns only; a gRPC *client* of Catalog. |
+| `BookLibrary.Api.Tests` | REST-edge unit tests (no Docker needed) — e.g. insight cache-key builders. |
 | `BookLibrary.Catalog` | gRPC *server*. All business logic, insight aggregations and Mongo access (`Domain/`, `Data/`, `Insights/`, `Mapping/`, `Services/`). |
 | `BookLibrary.Contracts` | The `.proto` contract; generates the gRPC server base + typed client. |
 | `BookLibrary.Seeder` | One-shot, idempotent sample-data loader. |
@@ -56,13 +57,14 @@ The main task's tests span four tiers. **Docker is a hard prerequisite for every
 
 | Tier | Where | Needs Docker | Covers |
 | --- | --- | :---: | --- |
-| Unit | `BookLibrary.Catalog.Tests/Unit` | no | Reading-pace branches, counted-borrow rule, domain→contract mapping. |
+| Unit | `BookLibrary.Catalog.Tests/Unit`, `BookLibrary.Api.Tests` | no | Reading-pace branches, counted-borrow rule, domain→contract mapping, cache keys. |
 | Integration | `BookLibrary.Catalog.Tests/Integration` | yes | Aggregation pipelines against real Mongo. |
 | Functional | `BookLibrary.Catalog.Tests/Functional` | yes | gRPC service surface (validation, status codes, mapping) over an in-memory host + Mongo. |
 | System | `BookLibrary.SystemTests` | yes | Full HTTP→gRPC→Mongo flows via Aspire.Hosting.Testing. |
 
 ```bash
 dotnet test --project BookLibrary.Catalog.Tests                       # unit + integration + functional
+dotnet test --project BookLibrary.Api.Tests                           # REST-edge unit tests
 dotnet test --project BookLibrary.SystemTests                         # full-system flows
 dotnet test --project BookLibrary.Catalog.Tests --treenode-filter "/*/*.Unit/*/*"   # Docker-free unit tier only
 ```

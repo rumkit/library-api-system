@@ -33,7 +33,7 @@ internal static class ContractMapping
             Guid.Parse(loan.UserId), loan.UserName, loan.BorrowedAt.ToDateTime(),
             loan.ReturnedAt?.ToDateTime());
 
-    /// <summary>Interprets a nullable query DateTime as UTC and converts it to a proto Timestamp.</summary>
-    public static Timestamp? ToTimestamp(this DateTime? value) =>
-        value is null ? null : Timestamp.FromDateTime(DateTime.SpecifyKind(value.Value, DateTimeKind.Utc));
+    /// <summary>Converts a nullable, already-UTC <see cref="UtcDateTime"/> to a proto Timestamp.</summary>
+    public static Timestamp? ToTimestamp(this UtcDateTime? value) =>
+        value is null ? null : Timestamp.FromDateTime(value.Value.Value);
 }

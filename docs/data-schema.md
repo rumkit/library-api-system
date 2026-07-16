@@ -126,19 +126,37 @@ Loans carry the analytical load, so they are indexed on the fields the insight p
 filter by. Indexes are (idempotently) created on startup by
 `BookLibrary.Catalog/Data/MongoIndexInitializer.cs`.
 
-| Collection | Index | Serves |
-| ---------- | ----- | ------ |
-| `Loans` | `{ BookId: 1 }` | Most-borrowed grouping, co-borrowed lookups. |
-| `Loans` | `{ UserId: 1 }` | Top-borrowers grouping. |
-| `Loans` | `{ BorrowedAt: 1 }` | Window (`[from, to)`) filtering. Redundant prefix of the compound index below; kept because the initializer is create-only (never drops an index). |
-| `Loans` | `{ UserId: 1, BookId: 1 }` | Reading-pace lookup (a user's loans of one book). |
-| `Loans` | `{ BookId: 1 }` unique, partial (`ReturnedAt: null`) — named `ux_loans_open_book` | **Double-loan guard.** Enforces "a book cannot have two open loans" at the database level — see [Design notes](#design-notes). |
-| `Loans` | `{ BorrowedAt: 1, _id: 1 }` | Cursor pagination over `/loans` (newest-first keyset). |
-| `Books` | `{ Title: 1, _id: 1 }` | Cursor pagination over `/books`. |
-| `Users` | `{ Name: 1, _id: 1 }` | Cursor pagination over `/users`. |
+| Collection | Index | Collation | Serves |
+| ---------- | ----- | --------- | ------ |
+| `Loans` | `{ BookId: 1 }` | default | Most-borrowed grouping, co-borrowed lookups. |
+| `Loans` | `{ UserId: 1 }` | default | Top-borrowers grouping. |
+| `Loans` | `{ UserId: 1, BookId: 1 }` | default | Reading-pace lookup (a user's loans of one book). |
+| `Loans` | `{ BookId: 1 }` unique, partial (`ReturnedAt: null`) — named `ux_loans_open_book` | default | **Double-loan guard.** Enforces "a book cannot have two open loans" at the database level — see [Design notes](#design-notes). |
+| `Loans` | `{ BorrowedAt: 1, _id: 1 }` | default | Cursor pagination over `/loans` (newest-first keyset); the `BorrowedAt` prefix also serves the window (`[from, to)`) filter. |
+| `Books` | `{ Title: 1, _id: 1 }` — named `ix_books_title_id_ci` | `en`, strength 2 (case-insensitive) | Cursor pagination over `/books`, ordered case-insensitively. |
+| `Users` | `{ Name: 1, _id: 1 }` — named `ix_users_name_id_ci` | `en`, strength 2 (case-insensitive) | Cursor pagination over `/users`, ordered case-insensitively. |
 
 `Books` and `Users` no longer rely solely on the default `_id` index — each also has the compound
 index above for cursor-paginated listing.
+
+- **Book/User listings sort case-insensitively.** `/books` and `/users` order by `Title`/`Name`
+  using a shared collation (`en`, strength 2 — case-insensitive, accent-sensitive), defined once as
+  `BookLibrary.Catalog/Data/ListingCollation.cs` and applied to both the index (`CreateIndexOptions.Collation`)
+  and the `Find` query (`FindOptions.Collation`) so they can't drift apart — a query collation that
+  doesn't match the index collation makes Mongo ignore the index. Without this, "apple" sorted after
+  "Zebra" under Mongo's default binary (code-point) comparison. Guid strings (the `_id` keyset
+  tiebreaker) are lowercase hex, so strength-2 collation orders them identically to a binary
+  comparison — the tiebreaker's total order still holds when the primary sort key compares
+  case-insensitively equal (e.g. "apple" and "Apple").
+- **Existing (pre-collation) `Books`/`Users` indexes are additive, not replaced.** Mongo only rejects
+  an index *definition* change under the same name (`IndexOptionsConflict`); the collated indexes
+  above use new explicit names (`ix_books_title_id_ci` / `ix_users_name_id_ci`) distinct from the
+  driver's auto-generated default names of the old indexes, so `MongoIndexInitializer` (create-only,
+  runs on every boot) adds them alongside the old uncollated `(Title, _id)` / `(Name, _id)` indexes
+  on a database seeded before this change, rather than crashing. The old indexes become redundant
+  dead weight in that case (Mongo will use whichever index matches the query's collation, i.e. the
+  new one, for listing) — drop them by hand on any long-lived database if reclaiming the space
+  matters; a fresh database never creates them in the first place.
 
 ---
 

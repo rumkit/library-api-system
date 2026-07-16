@@ -139,9 +139,8 @@ Conventions:
   another with `400`.
 - **Limits**: `limit` must be positive (`400` otherwise) and is capped at **1000**; larger values
   are silently clamped.
-- **Timestamps are UTC.** Send dates as plain ISO-8601 without a timezone offset
-  (`2026-01-01T00:00:00`); values with offsets are not interpreted. Windows are half-open
-  `[from, to)`.
+- **Timestamps are UTC.** Plain ISO-8601 values (`2026-01-01T00:00:00`) are assumed UTC; values
+  with an offset or a trailing `Z` are converted to UTC. Windows are half-open `[from, to)`.
 
 ---
 

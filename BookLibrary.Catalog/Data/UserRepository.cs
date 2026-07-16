@@ -38,7 +38,7 @@ public sealed class UserRepository(LibraryDb db) : IUserRepository
         }
 
         var items = await db.Users
-            .Find(filter)
+            .Find(filter, ListingCollation.FindOptions)
             .SortBy(u => u.Name)
             .ThenBy(u => u.Id)
             .Limit(limit + 1)

@@ -1,4 +1,5 @@
 using BookLibrary.Api.Caching;
+using BookLibrary.Api.Contracts;
 
 namespace BookLibrary.Api.Tests;
 
@@ -8,8 +9,8 @@ public class CatalogCacheKeysTests
 {
     private static readonly Guid BookId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid UserId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly DateTime From = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime To = new(2026, 6, 30, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly UtcDateTime From = new(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+    private static readonly UtcDateTime To = new(new DateTime(2026, 6, 30, 0, 0, 0, DateTimeKind.Utc));
 
     [Test]
     public async Task MostBorrowed_WhenLimitDiffers_ShouldProduceDistinctKeys()

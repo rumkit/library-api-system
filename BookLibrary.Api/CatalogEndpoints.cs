@@ -15,6 +15,12 @@ public static class CatalogEndpoints
 {
     private const int DefaultLimit = 20;
 
+    // Mirrors CatalogGrpcService.MaxLimit (Catalog project) — keep the two in sync by hand, since
+    // Api must not reference Catalog directly.
+    private const int MaxLimit = 1000;
+
+    private static readonly string LimitDescription = $"limit: 1–{MaxLimit} (values above {MaxLimit} are clamped)";
+
     // Every insight entry carries the same tag so a future write path can evict them in one call.
     private static readonly string[] InsightsTags = [CatalogCacheKeys.InsightsTag];
 
@@ -38,6 +44,7 @@ public static class CatalogEndpoints
                 reply.HasNextCursor ? reply.NextCursor : null));
         })
         .WithSummary("List books, cursor-paginated.")
+        .WithDescription(LimitDescription)
         .Produces<CursorPage<BookDto>>()
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -102,6 +109,7 @@ public static class CatalogEndpoints
                 reply.HasNextCursor ? reply.NextCursor : null));
         })
         .WithSummary("List users, cursor-paginated.")
+        .WithDescription(LimitDescription)
         .Produces<CursorPage<UserDto>>()
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -184,6 +192,7 @@ public static class CatalogEndpoints
                 reply.HasNextCursor ? reply.NextCursor : null));
         })
         .WithSummary("List loans, cursor-paginated. Optionally filter by userId, bookId, openOnly.")
+        .WithDescription(LimitDescription)
         .Produces<CursorPage<LoanDto>>()
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -249,8 +258,8 @@ public static class CatalogEndpoints
             IOptions<CatalogCacheOptions> cacheOptions,
             CancellationToken ct,
             int limit = DefaultLimit,
-            DateTime? from = null,
-            DateTime? to = null) =>
+            UtcDateTime? from = null,
+            UtcDateTime? to = null) =>
         {
             var books = await cache.GetOrCreateAsync(
                 CatalogCacheKeys.MostBorrowed(limit, from, to),
@@ -269,7 +278,8 @@ public static class CatalogEndpoints
                 cancellationToken: ct);
             return Results.Ok(books);
         })
-        .WithSummary("Most borrowed books, optionally within a [from, to) window.");
+        .WithSummary("Most borrowed books, optionally within a [from, to) window.")
+        .WithDescription(LimitDescription);
 
         insights.MapGet("/top-borrowers", async (
             CatalogService.CatalogServiceClient client,
@@ -277,8 +287,8 @@ public static class CatalogEndpoints
             IOptions<CatalogCacheOptions> cacheOptions,
             CancellationToken ct,
             int limit = DefaultLimit,
-            DateTime? from = null,
-            DateTime? to = null) =>
+            UtcDateTime? from = null,
+            UtcDateTime? to = null) =>
         {
             var borrowers = await cache.GetOrCreateAsync(
                 CatalogCacheKeys.TopBorrowers(limit, from, to),
@@ -297,7 +307,8 @@ public static class CatalogEndpoints
                 cancellationToken: ct);
             return Results.Ok(borrowers);
         })
-        .WithSummary("Top borrowers within a [from, to) window (defaults to year-to-date).");
+        .WithSummary("Top borrowers within a [from, to) window (defaults to year-to-date).")
+        .WithDescription(LimitDescription);
 
         insights.MapGet("/reading-pace", async (
             Guid userId,
@@ -347,7 +358,8 @@ public static class CatalogEndpoints
                 cancellationToken: ct);
             return Results.Ok(books);
         })
-        .WithSummary("Books co-borrowed by users who borrowed the given book.");
+        .WithSummary("Books co-borrowed by users who borrowed the given book.")
+        .WithDescription(LimitDescription);
 
         return app;
     }

@@ -22,9 +22,9 @@ public sealed record LoanDto(
     Guid Id, Guid BookId, string BookTitle, string BookAuthor,
     Guid UserId, string UserName, DateTime BorrowedAt, DateTime? ReturnedAt);
 
-public sealed record CreateLoanRequestDto(Guid BookId, Guid UserId, DateTime? BorrowedAt);
+public sealed record CreateLoanRequestDto(Guid BookId, Guid UserId, UtcDateTime? BorrowedAt);
 
-public sealed record ReturnLoanRequestDto(DateTime? ReturnedAt);
+public sealed record ReturnLoanRequestDto(UtcDateTime? ReturnedAt);
 
 public sealed record MostBorrowedBookDto(BookDto Book, long BorrowCount);
 

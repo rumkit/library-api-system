@@ -1,4 +1,5 @@
 using System.Globalization;
+using BookLibrary.Api.Contracts;
 
 namespace BookLibrary.Api.Caching;
 
@@ -13,10 +14,10 @@ internal static class CatalogCacheKeys
     /// <summary>Tag applied to every insight entry, for future <c>RemoveByTagAsync</c> invalidation.</summary>
     public const string InsightsTag = "insights";
 
-    public static string MostBorrowed(int limit, DateTime? from, DateTime? to) =>
+    public static string MostBorrowed(int limit, UtcDateTime? from, UtcDateTime? to) =>
         $"insights:most-borrowed:{limit}:{Window(from)}:{Window(to)}";
 
-    public static string TopBorrowers(int limit, DateTime? from, DateTime? to) =>
+    public static string TopBorrowers(int limit, UtcDateTime? from, UtcDateTime? to) =>
         $"insights:top-borrowers:{limit}:{Window(from)}:{Window(to)}";
 
     public static string ReadingPace(Guid userId, Guid bookId) =>
@@ -25,6 +26,6 @@ internal static class CatalogCacheKeys
     public static string CoBorrowed(Guid bookId, int limit) =>
         $"insights:co-borrowed:{bookId}:{limit}";
 
-    private static string Window(DateTime? value) =>
-        value is { } v ? v.ToString("o", CultureInfo.InvariantCulture) : "none";
+    private static string Window(UtcDateTime? value) =>
+        value is { } v ? v.Value.ToString("o", CultureInfo.InvariantCulture) : "none";
 }

@@ -35,7 +35,7 @@ public sealed class BookRepository(LibraryDb db) : IBookRepository
         }
 
         var items = await db.Books
-            .Find(filter)
+            .Find(filter, ListingCollation.FindOptions)
             .SortBy(b => b.Title)
             .ThenBy(b => b.Id)
             .Limit(limit + 1)

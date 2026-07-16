@@ -19,7 +19,6 @@ public sealed class MongoIndexInitializer(LibraryDb db, ILogger<MongoIndexInitia
         {
             new CreateIndexModel<Loan>(loanKeys.Ascending(l => l.BookId)),
             new CreateIndexModel<Loan>(loanKeys.Ascending(l => l.UserId)),
-            new CreateIndexModel<Loan>(loanKeys.Ascending(l => l.BorrowedAt)),
             // Supports the reading-pace lookup, which filters by user and book together.
             new CreateIndexModel<Loan>(loanKeys.Ascending(l => l.UserId).Ascending(l => l.BookId)),
             // Double-loan guard (a book cannot have two open loans): unique on BookId, scoped to
@@ -32,21 +31,28 @@ public sealed class MongoIndexInitializer(LibraryDb db, ILogger<MongoIndexInitia
                     Unique = true,
                     PartialFilterExpression = Builders<Loan>.Filter.Eq(l => l.ReturnedAt, null),
                 }),
-            // Cursor paging over (BorrowedAt desc, _id desc); the BorrowedAt prefix still serves
+            // Cursor paging over (BorrowedAt desc, _id desc); the BorrowedAt prefix also serves
             // the insight window filter, and Mongo walks the same index backwards for the desc
-            // page order. The lone {BorrowedAt: 1} index above becomes a redundant prefix of this
-            // one; left in place since the initializer is create-only.
+            // page order.
             new CreateIndexModel<Loan>(loanKeys.Ascending(l => l.BorrowedAt).Ascending(l => l.Id)),
         };
 
         var bookModels = new[]
         {
-            new CreateIndexModel<Book>(Builders<Book>.IndexKeys.Ascending(b => b.Title).Ascending(b => b.Id)),
+            // Case-insensitive listing order (see ListingCollation) requires the index collation
+            // to match the query collation, or Mongo won't use the index. Named explicitly so a
+            // database seeded before this change (which has the old, uncollated index under the
+            // default name) gets this as a second index rather than an IndexOptionsConflict.
+            new CreateIndexModel<Book>(
+                Builders<Book>.IndexKeys.Ascending(b => b.Title).Ascending(b => b.Id),
+                new CreateIndexOptions<Book> { Name = "ix_books_title_id_ci", Collation = ListingCollation.Collation }),
         };
 
         var userModels = new[]
         {
-            new CreateIndexModel<User>(Builders<User>.IndexKeys.Ascending(u => u.Name).Ascending(u => u.Id)),
+            new CreateIndexModel<User>(
+                Builders<User>.IndexKeys.Ascending(u => u.Name).Ascending(u => u.Id),
+                new CreateIndexOptions<User> { Name = "ix_users_name_id_ci", Collation = ListingCollation.Collation }),
         };
 
         await db.Loans.Indexes.CreateManyAsync(loanModels, cancellationToken);
