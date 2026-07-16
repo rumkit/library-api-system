@@ -1,4 +1,5 @@
 using BookLibrary.Catalog.Data;
+using BookLibrary.Catalog.Data.Paging;
 using BookLibrary.Contracts;
 using Grpc.Core;
 using Grpc.Net.Client;
@@ -770,6 +771,41 @@ public class CatalogServiceTests
 
             await Assert.That(reply.Loans.Count).IsEqualTo(1);
             await Assert.That(reply.Loans[0].BookId).IsEqualTo(B(1).ToString());
+        }
+    }
+
+    [Test]
+    public async Task ListLoans_WhenCursorMalformed_ShouldThrowInvalidArgument()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.ListLoansAsync(new ListLoansRequest { Limit = 10, Cursor = "not-a-cursor" }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    // Regression test: a structurally well-formed cursor whose sort key does not parse as the
+    // loan listing's DateTime sort (e.g. one produced by /books, sort key = a book title) must be
+    // rejected as InvalidArgument, not surface as an unhandled FormatException -> gRPC Unknown ->
+    // HTTP 500. See BookLibrary.Catalog/Data/LoanRepository.cs ListAsync and
+    // BookLibrary.Catalog/Services/CatalogGrpcService.cs ListLoans.
+    [Test]
+    public async Task ListLoans_WhenCursorHasWrongSortKeyShape_ShouldThrowInvalidArgumentNotUnknown()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            // Structurally a valid cursor (as produced by BookRepository: title sort key + id),
+            // but not a DateTime — the shape LoanRepository's sort requires.
+            var bookShapedCursor = Cursor.Encode("Moby Dick", Guid.NewGuid());
+
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.ListLoansAsync(new ListLoansRequest { Limit = 10, Cursor = bookShapedCursor }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
         }
     }
 

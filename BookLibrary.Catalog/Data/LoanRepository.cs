@@ -47,11 +47,19 @@ public sealed class LoanRepository(LibraryDb db) : ILoanRepository
         if (filter.OpenOnly)
             filters.Add(builder.Eq(l => l.ReturnedAt, null));
 
-        if (!string.IsNullOrEmpty(cursor) && Cursor.TryDecode(cursor, out var sortKey, out var lastId))
+        if (!string.IsNullOrEmpty(cursor))
         {
-            var lastBorrowedAt = DateTime.Parse(
-                sortKey, System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.RoundtripKind);
+            var (sortKey, lastId) = Cursor.Decode(cursor);
+
+            // Loans sort by BorrowedAt (a date), unlike books/users which sort by a string
+            // field — a cursor whose sort key isn't a roundtrippable DateTime (e.g. one produced
+            // by the book/user listings) is semantically invalid for this repository's sort, even
+            // though it decoded structurally. TryParse (not Parse) keeps this a signal, not an
+            // exception-driven control flow.
+            if (!DateTime.TryParse(
+                    sortKey, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var lastBorrowedAt))
+                throw new InvalidCursorException("cursor is not valid.");
 
             // Newest-first order: strictly-before on BorrowedAt, or equal and strictly-before on id.
             filters.Add(builder.Or(

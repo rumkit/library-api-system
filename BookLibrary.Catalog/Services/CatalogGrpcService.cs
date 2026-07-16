@@ -45,10 +45,8 @@ public sealed partial class CatalogGrpcService(
     {
         var limit = NormalizeLimit(request.Limit);
         var cursor = request.HasCursor ? request.Cursor : null;
-        if (cursor is not null && !Cursor.TryDecode(cursor, out _, out _))
-            throw InvalidArgument("cursor is not valid.");
 
-        var page = await users.ListAsync(limit, cursor, context.CancellationToken);
+        var page = await ListOrThrowAsync(() => users.ListAsync(limit, cursor, context.CancellationToken));
         var response = new ListUsersResponse();
         response.Users.AddRange(page.Items.Select(mapper.ToContract));
         if (page.NextCursor is not null)
@@ -110,10 +108,8 @@ public sealed partial class CatalogGrpcService(
     {
         var limit = NormalizeLimit(request.Limit);
         var cursor = request.HasCursor ? request.Cursor : null;
-        if (cursor is not null && !Cursor.TryDecode(cursor, out _, out _))
-            throw InvalidArgument("cursor is not valid.");
 
-        var page = await books.ListAsync(limit, cursor, context.CancellationToken);
+        var page = await ListOrThrowAsync(() => books.ListAsync(limit, cursor, context.CancellationToken));
         var response = new ListBooksResponse();
         response.Books.AddRange(page.Items.Select(mapper.ToContract));
         if (page.NextCursor is not null)
@@ -174,14 +170,12 @@ public sealed partial class CatalogGrpcService(
     {
         var limit = NormalizeLimit(request.Limit);
         var cursor = request.HasCursor ? request.Cursor : null;
-        if (cursor is not null && !Cursor.TryDecode(cursor, out _, out _))
-            throw InvalidArgument("cursor is not valid.");
 
         Guid? userId = request.HasUserId ? ParseId(request.UserId, nameof(request.UserId)) : null;
         Guid? bookId = request.HasBookId ? ParseId(request.BookId, nameof(request.BookId)) : null;
         var filter = new LoanFilter(userId, bookId, request.HasOpenOnly && request.OpenOnly);
 
-        var page = await loans.ListAsync(limit, cursor, filter, context.CancellationToken);
+        var page = await ListOrThrowAsync(() => loans.ListAsync(limit, cursor, filter, context.CancellationToken));
         var response = new ListLoansResponse();
         response.Loans.AddRange(page.Items.Select(mapper.ToContract));
         if (page.NextCursor is not null)
@@ -365,6 +359,21 @@ public sealed partial class CatalogGrpcService(
         > MaxLimit => MaxLimit,
         _ => limit,
     };
+
+    // Repositories own cursor decoding and semantic validation end-to-end (see Cursor.Decode /
+    // InvalidCursorException); this is the single place that translates a rejected cursor into the
+    // gRPC status the REST edge maps to HTTP 400, whichever list method triggered it.
+    private static async Task<Page<T>> ListOrThrowAsync<T>(Func<Task<Page<T>>> list)
+    {
+        try
+        {
+            return await list();
+        }
+        catch (InvalidCursorException)
+        {
+            throw InvalidArgument("cursor is not valid.");
+        }
+    }
 
     private static Guid ParseId(string value, string field) =>
         Guid.TryParse(value, out var id)

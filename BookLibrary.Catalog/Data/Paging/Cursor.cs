@@ -19,6 +19,19 @@ internal static class Cursor
         return Base64Url.EncodeToString(json);
     }
 
+    /// <summary>
+    /// Decodes a non-empty cursor, throwing <see cref="InvalidCursorException"/> when it is not
+    /// well-formed. Callers that already special-case a null/empty cursor (page one) should call
+    /// this only once they know <paramref name="value"/> is non-empty; use <see cref="TryDecode"/>
+    /// directly if a bool-returning check is more convenient.
+    /// </summary>
+    public static (string SortKey, Guid Id) Decode(string value)
+    {
+        if (!TryDecode(value, out var sortKey, out var id))
+            throw new InvalidCursorException("cursor is not valid.");
+        return (sortKey, id);
+    }
+
     /// <returns>false when the value is not a well-formed cursor (caller maps to InvalidArgument).</returns>
     public static bool TryDecode(string? value, out string sortKey, out Guid id)
     {

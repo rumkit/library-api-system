@@ -27,8 +27,9 @@ public sealed class UserRepository(LibraryDb db) : IUserRepository
         var builder = Builders<User>.Filter;
         var filter = FilterDefinition<User>.Empty;
 
-        if (!string.IsNullOrEmpty(cursor) && Cursor.TryDecode(cursor, out var lastName, out var lastId))
+        if (!string.IsNullOrEmpty(cursor))
         {
+            var (lastName, lastId) = Cursor.Decode(cursor);
             filter = builder.Or(
                 builder.Gt(u => u.Name, lastName),
                 builder.And(

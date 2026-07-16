@@ -228,4 +228,25 @@ public class LoanRepositoryTests
         await Assert.That(seen.Count).IsEqualTo(15);
         await Assert.That(seen.SetEquals(ids)).IsTrue();
     }
+
+    [Test]
+    public async Task ListAsync_WhenCursorStructurallyInvalid_ShouldThrowInvalidCursorException()
+    {
+        var repo = await NewRepoAsync();
+
+        await Assert.ThrowsAsync<InvalidCursorException>(async () =>
+            await repo.ListAsync(10, "not-a-cursor", new LoanFilter(null, null, false), CancellationToken.None));
+    }
+
+    [Test]
+    public async Task ListAsync_WhenCursorSortKeyIsNotADate_ShouldThrowInvalidCursorException()
+    {
+        var repo = await NewRepoAsync();
+        // A structurally well-formed cursor whose sort key is a title, not a date — e.g. one
+        // produced by BookRepository/UserRepository and mistakenly passed to the loan listing.
+        var wrongShapeCursor = Cursor.Encode("Moby Dick", Guid.NewGuid());
+
+        await Assert.ThrowsAsync<InvalidCursorException>(async () =>
+            await repo.ListAsync(10, wrongShapeCursor, new LoanFilter(null, null, false), CancellationToken.None));
+    }
 }

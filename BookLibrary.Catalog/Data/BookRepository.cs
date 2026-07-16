@@ -24,8 +24,9 @@ public sealed class BookRepository(LibraryDb db) : IBookRepository
         var builder = Builders<Book>.Filter;
         var filter = FilterDefinition<Book>.Empty;
 
-        if (!string.IsNullOrEmpty(cursor) && Cursor.TryDecode(cursor, out var lastTitle, out var lastId))
+        if (!string.IsNullOrEmpty(cursor))
         {
+            var (lastTitle, lastId) = Cursor.Decode(cursor);
             filter = builder.Or(
                 builder.Gt(b => b.Title, lastTitle),
                 builder.And(
