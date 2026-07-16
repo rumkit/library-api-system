@@ -14,6 +14,7 @@ builder.Services.AddHostedService<MongoIndexInitializer>();
 builder.Services.AddSingleton<CatalogMapper>();
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ILoanRepository, LoanRepository>();
 builder.Services.AddScoped<IInsightRepository, InsightRepository>();
 
 builder.Services.AddGrpc();

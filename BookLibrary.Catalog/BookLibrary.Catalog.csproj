@@ -18,4 +18,8 @@
     <ProjectReference Include="..\BookLibrary.ServiceDefaults\BookLibrary.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="BookLibrary.Catalog.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -7,8 +7,9 @@ namespace BookLibrary.Api;
 
 /// <summary>
 /// Translates gRPC failures from the Catalog backend into HTTP ProblemDetails at the REST edge:
-/// NotFound → 404, InvalidArgument → 400, cancellation → 499, everything else → 500. This is the
-/// single seam where backend status codes become HTTP semantics.
+/// NotFound → 404, InvalidArgument → 400, FailedPrecondition/AlreadyExists → 409, cancellation →
+/// 499, everything else → 500. This is the single seam where backend status codes become HTTP
+/// semantics.
 /// </summary>
 public sealed partial class RpcExceptionHandler(
     IProblemDetailsService problemDetails,
@@ -24,6 +25,8 @@ public sealed partial class RpcExceptionHandler(
         {
             StatusCode.NotFound => StatusCodes.Status404NotFound,
             StatusCode.InvalidArgument => StatusCodes.Status400BadRequest,
+            StatusCode.FailedPrecondition => StatusCodes.Status409Conflict,
+            StatusCode.AlreadyExists => StatusCodes.Status409Conflict,
             StatusCode.Cancelled => 499, // client closed request
             _ => StatusCodes.Status500InternalServerError,
         };
@@ -50,6 +53,7 @@ public sealed partial class RpcExceptionHandler(
     {
         StatusCodes.Status404NotFound => "Not Found",
         StatusCodes.Status400BadRequest => "Bad Request",
+        StatusCodes.Status409Conflict => "Conflict",
         499 => "Client Closed Request",
         _ => "Internal Server Error",
     };

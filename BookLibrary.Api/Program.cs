@@ -18,6 +18,7 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<CatalogCacheOptions>(builder.Configuration.GetSection("CatalogCache"));
 builder.Services.AddHybridCache(options =>
     options.DefaultEntryOptions = new HybridCacheEntryOptions { Expiration = TimeSpan.FromMinutes(5) });
+builder.Services.AddSingleton<InsightCacheInvalidator>();
 
 // Typed gRPC client for the Catalog backend. The host "catalog" is rewritten to the real
 // endpoint by the Aspire service-discovery handler (added via ServiceDefaults); the scheme must
