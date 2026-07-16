@@ -1,9 +1,11 @@
 using BookLibrary.Catalog.Data;
+using BookLibrary.Catalog.Data.Paging;
 using BookLibrary.Catalog.Insights;
 using BookLibrary.Catalog.Mapping;
 using BookLibrary.Contracts;
 using Grpc.Core;
 using Google.Protobuf.WellKnownTypes;
+using Domain = BookLibrary.Catalog.Domain;
 
 namespace BookLibrary.Catalog.Services;
 
@@ -15,11 +17,13 @@ namespace BookLibrary.Catalog.Services;
 public sealed partial class CatalogGrpcService(
     IBookRepository books,
     IUserRepository users,
+    ILoanRepository loans,
     IInsightRepository insights,
     CatalogMapper mapper,
     ILogger<CatalogGrpcService> logger) : CatalogService.CatalogServiceBase
 {
     private const int MaxLimit = 1000;
+    private const int MaxTextLength = 500;
 
     public override async Task<Book> GetBook(GetBookRequest request, ServerCallContext context)
     {
@@ -40,14 +44,57 @@ public sealed partial class CatalogGrpcService(
     public override async Task<ListBooksResponse> ListBooks(ListBooksRequest request, ServerCallContext context)
     {
         var limit = NormalizeLimit(request.Limit);
-        var skip = request.Skip < 0
-            ? throw InvalidArgument("skip must be zero or greater.")
-            : request.Skip;
+        var cursor = request.HasCursor ? request.Cursor : null;
+        if (cursor is not null && !Cursor.TryDecode(cursor, out _, out _))
+            throw InvalidArgument("cursor is not valid.");
 
-        var result = await books.ListAsync(limit, skip, context.CancellationToken);
+        var page = await books.ListAsync(limit, cursor, context.CancellationToken);
         var response = new ListBooksResponse();
-        response.Books.AddRange(result.Select(mapper.ToContract));
+        response.Books.AddRange(page.Items.Select(mapper.ToContract));
+        if (page.NextCursor is not null)
+            response.NextCursor = page.NextCursor;
         return response;
+    }
+
+    public override async Task<Book> CreateBook(CreateBookRequest request, ServerCallContext context)
+    {
+        var title = RequireText(request.Title, nameof(request.Title));
+        var author = RequireText(request.Author, nameof(request.Author));
+        if (request.PageCount < 0)
+            throw InvalidArgument("page_count must be zero or greater.");
+        if (request.Year != 0 && (request.Year < 1 || request.Year > DateTime.UtcNow.Year + 1))
+            throw InvalidArgument("year must be 0 (unknown) or a plausible publication year.");
+
+        // Duplicate titles are allowed: one Book document is one physical copy, so two copies of
+        // the same title are two documents.
+        var book = new Domain.Book
+        {
+            Id = Guid.CreateVersion7(),
+            Title = title,
+            Author = author,
+            PageCount = request.PageCount,
+            Year = request.Year,
+        };
+        await books.CreateAsync(book, context.CancellationToken);
+        Log.BookCreated(logger, book.Id, book.Title);
+        return mapper.ToContract(book);
+    }
+
+    public override async Task<DeleteBookResponse> DeleteBook(DeleteBookRequest request, ServerCallContext context)
+    {
+        var id = ParseId(request.Id, nameof(request.Id));
+        _ = await books.GetAsync(id, context.CancellationToken)
+            ?? throw NotFound($"Book '{id}' was not found.");
+
+        // The "lost book" flow: the physical copy is gone, so any open loan can never be closed by
+        // a return and must be force-closed here. Close loans before deleting the book so there is
+        // no window where the book is gone but a loan is still open. The loan keeps its
+        // BookTitle/BookAuthor snapshot, so history stays readable after the book is deleted.
+        var closedLoans = await loans.CloseOpenByBookAsync(id, DateTime.UtcNow, context.CancellationToken);
+        await books.DeleteAsync(id, context.CancellationToken);
+        Log.BookDeleted(logger, id, closedLoans);
+
+        return new DeleteBookResponse { ClosedLoans = (int)closedLoans };
     }
 
     public override async Task<MostBorrowedBooksResponse> GetMostBorrowedBooks(
@@ -165,6 +212,17 @@ public sealed partial class CatalogGrpcService(
             ? id
             : throw InvalidArgument($"{field} is not a valid id.");
 
+    private static string RequireText(string value, string field)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length switch
+        {
+            0 => throw InvalidArgument($"{field} must not be blank."),
+            > MaxTextLength => throw InvalidArgument($"{field} must be at most {MaxTextLength} characters."),
+            _ => trimmed,
+        };
+    }
+
     private static RpcException InvalidArgument(string message) =>
         new(new Status(StatusCode.InvalidArgument, message));
 
@@ -187,5 +245,12 @@ public sealed partial class CatalogGrpcService(
 
         [LoggerMessage(Level = LogLevel.Debug, Message = "Insight returned {Count} rows.")]
         public static partial void ResultCount(ILogger logger, int count);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "Book created: id={BookId}, title={Title}")]
+        public static partial void BookCreated(ILogger logger, Guid bookId, string title);
+
+        [LoggerMessage(Level = LogLevel.Information,
+            Message = "Book deleted: id={BookId}, closedLoans={ClosedLoans}")]
+        public static partial void BookDeleted(ILogger logger, Guid bookId, long closedLoans);
     }
 }

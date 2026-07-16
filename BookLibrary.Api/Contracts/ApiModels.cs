@@ -7,6 +7,13 @@ public sealed record BookDto(Guid Id, string Title, string Author, int PageCount
 
 public sealed record UserDto(Guid Id, string Name);
 
+/// <summary>One page of a cursor-paginated list. NextCursor is null on the last page.</summary>
+public sealed record CursorPage<T>(IReadOnlyList<T> Items, string? NextCursor);
+
+public sealed record CreateBookRequestDto(string Title, string Author, int PageCount, int Year);
+
+public sealed record DeleteBookResultDto(int ClosedLoans);
+
 public sealed record MostBorrowedBookDto(BookDto Book, long BorrowCount);
 
 public sealed record TopBorrowerDto(UserDto User, long BorrowCount);

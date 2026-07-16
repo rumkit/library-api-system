@@ -16,6 +16,8 @@ namespace BookLibrary.Catalog.Tests.Functional;
 public sealed class CatalogApiFactory(string connectionString, string databaseName)
     : WebApplicationFactory<Program>
 {
+    public string DatabaseName { get; } = databaseName;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Satisfy AddMongoDBClient's configuration lookup; the override below is what actually gets used.
@@ -24,7 +26,7 @@ public sealed class CatalogApiFactory(string connectionString, string databaseNa
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<LibraryDb>();
-            services.AddSingleton(new LibraryDb(new MongoClient(connectionString).GetDatabase(databaseName)));
+            services.AddSingleton(new LibraryDb(new MongoClient(connectionString).GetDatabase(DatabaseName)));
         });
     }
 }

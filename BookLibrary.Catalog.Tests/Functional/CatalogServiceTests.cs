@@ -163,6 +163,195 @@ public class CatalogServiceTests
         }
     }
 
+    [Test]
+    public async Task ListBooks_WhenCursorSupplied_ShouldReturnNextPageWithoutOverlap()
+    {
+        var (client, factory) = await StartAsync(db => db.Books.InsertManyAsync(
+            Enumerable.Range(1, 5).Select(n => new Book
+            {
+                Id = B(n), Title = $"Title {n:D2}", Author = "A", PageCount = 100,
+            })));
+        using (factory)
+        {
+            var first = await client.ListBooksAsync(new ListBooksRequest { Limit = 2 });
+            await Assert.That(first.Books.Count).IsEqualTo(2);
+            await Assert.That(first.HasNextCursor).IsTrue();
+
+            var second = await client.ListBooksAsync(new ListBooksRequest { Limit = 2, Cursor = first.NextCursor });
+            await Assert.That(second.Books.Count).IsEqualTo(2);
+
+            var firstIds = first.Books.Select(b => b.Id).ToHashSet();
+            var secondIds = second.Books.Select(b => b.Id).ToHashSet();
+            await Assert.That(firstIds.Overlaps(secondIds)).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task ListBooks_WhenLastPage_ShouldReturnNoNextCursor()
+    {
+        var (client, factory) = await StartAsync(db => db.Books.InsertOneAsync(
+            new Book { Id = B(1), Title = "Solo", Author = "A", PageCount = 100 }));
+        using (factory)
+        {
+            var reply = await client.ListBooksAsync(new ListBooksRequest { Limit = 20 });
+
+            await Assert.That(reply.HasNextCursor).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task ListBooks_WhenCursorMalformed_ShouldThrowInvalidArgument()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.ListBooksAsync(new ListBooksRequest { Limit = 10, Cursor = "not-a-cursor" }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    [Test]
+    public async Task ListBooks_WhenBooksShareTitle_ShouldPageWithoutDuplicates()
+    {
+        var (client, factory) = await StartAsync(db => db.Books.InsertManyAsync(
+            Enumerable.Range(1, 6).Select(n => new Book
+            {
+                Id = B(n), Title = "Same Title", Author = "A", PageCount = 100,
+            })));
+        using (factory)
+        {
+            var seen = new HashSet<string>();
+            string? cursor = null;
+            ListBooksResponse? page = null;
+            for (var i = 0; i < 10 && (page is null || page.HasNextCursor); i++)
+            {
+                var request = new ListBooksRequest { Limit = 2 };
+                if (cursor is not null) request.Cursor = cursor;
+                page = await client.ListBooksAsync(request);
+                foreach (var b in page.Books)
+                    seen.Add(b.Id);
+                cursor = page.HasNextCursor ? page.NextCursor : null;
+            }
+
+            await Assert.That(seen.Count).IsEqualTo(6);
+        }
+    }
+
+    [Test]
+    public async Task CreateBook_WhenValid_ShouldReturnBookWithGeneratedId()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var book = await client.CreateBookAsync(new CreateBookRequest
+            {
+                Title = "New Book", Author = "New Author", PageCount = 200, Year = 2020,
+            });
+
+            await Assert.That(Guid.TryParse(book.Id, out _)).IsTrue();
+            await Assert.That(book.Title).IsEqualTo("New Book");
+            await Assert.That(book.Author).IsEqualTo("New Author");
+            await Assert.That(book.PageCount).IsEqualTo(200);
+            await Assert.That(book.Year).IsEqualTo(2020);
+        }
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    public async Task CreateBook_WhenTitleBlank_ShouldThrowInvalidArgument(string title)
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateBookAsync(new CreateBookRequest
+                {
+                    Title = title, Author = "A", PageCount = 100, Year = 2020,
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    [Test]
+    public async Task CreateBook_WhenPageCountNegative_ShouldThrowInvalidArgument()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateBookAsync(new CreateBookRequest
+                {
+                    Title = "T", Author = "A", PageCount = -1, Year = 2020,
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    [Test]
+    public async Task CreateBook_WhenYearInFarFuture_ShouldThrowInvalidArgument()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateBookAsync(new CreateBookRequest
+                {
+                    Title = "T", Author = "A", PageCount = 100, Year = DateTime.UtcNow.Year + 50,
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    [Test]
+    public async Task DeleteBook_WhenUnknown_ShouldThrowNotFound()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.DeleteBookAsync(new DeleteBookRequest { Id = B(99).ToString() }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        }
+    }
+
+    [Test]
+    public async Task DeleteBook_WhenBookHasOpenLoan_ShouldCloseLoanAndReport()
+    {
+        var loanId = Guid.NewGuid();
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = loanId,
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
+                BorrowedAt = Recent, ReturnedAt = null,
+            });
+        });
+        using (factory)
+        {
+            var reply = await client.DeleteBookAsync(new DeleteBookRequest { Id = B(1).ToString() });
+
+            await Assert.That(reply.ClosedLoans).IsEqualTo(1);
+
+            var db = new LibraryDb(new MongoClient(Mongo.ConnectionString)
+                .GetDatabase(factory.DatabaseName));
+            var loan = await db.Loans.Find(l => l.Id == loanId).FirstOrDefaultAsync();
+            await Assert.That(loan).IsNotNull();
+            await Assert.That(loan!.ReturnedAt).IsNotNull();
+            await Assert.That(loan.BookTitle).IsEqualTo("T");
+        }
+    }
+
     private static Loan Loan(int user, int book) => new()
     {
         Id = Guid.NewGuid(),

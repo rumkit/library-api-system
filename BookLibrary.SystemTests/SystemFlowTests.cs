@@ -25,9 +25,11 @@ public class SystemFlowTests
     [Test]
     public async Task GetBooks_ShouldReturnAllSeededBooks()
     {
-        var books = await GetAsync<List<BookDto>>("/books?limit=100");
+        // Other tests in this shared-host class create/delete their own books concurrently, so
+        // assert a superset of the seeded ids rather than an exact count.
+        var seen = await PageAllBooksAsync(100);
 
-        await Assert.That(books.Count).IsEqualTo(SampleData.Books.Count);
+        await Assert.That(SampleData.Books.Select(b => b.Id).All(seen.Contains)).IsTrue();
     }
 
     [Test]
@@ -37,6 +39,56 @@ public class SystemFlowTests
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/problem+json");
+    }
+
+    [Test]
+    public async Task PostBook_ThenGetBook_ShouldRoundTrip()
+    {
+        var response = await Host.ApiClient.PostAsJsonAsync("/books", new
+        {
+            Title = "System Test Book", Author = "System Author", PageCount = 123, Year = 2021,
+        });
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Created);
+        var created = (await response.Content.ReadFromJsonAsync<BookDto>(Json))!;
+        await Assert.That(response.Headers.Location!.ToString()).IsEqualTo($"/books/{created.Id}");
+
+        var fetched = await GetAsync<BookDto>($"/books/{created.Id}");
+        await Assert.That(fetched.Title).IsEqualTo("System Test Book");
+
+        // Clean up: the AppHost fixture (and its seeded data count) is shared across this class's
+        // tests, so a book left behind here would leak into e.g. the paging-count tests.
+        await Host.ApiClient.DeleteAsync($"/books/{created.Id}");
+    }
+
+    [Test]
+    public async Task Books_WhenPagingWithCursor_ShouldEnumerateEverySeededBookExactlyOnce()
+    {
+        // Other tests in this shared-host class create/delete their own books concurrently, so
+        // assert a superset of the seeded ids rather than an exact count.
+        var seen = await PageAllBooksAsync(10);
+
+        await Assert.That(SampleData.Books.Select(b => b.Id).All(seen.Contains)).IsTrue();
+    }
+
+    private async Task<HashSet<Guid>> PageAllBooksAsync(int limit)
+    {
+        var seen = new HashSet<Guid>();
+        string? cursor = null;
+        CursorPage<BookDto>? page = null;
+        // Bounded so a cursor bug (loop/skip) fails the test instead of hanging.
+        for (var i = 0; i < 1000 && (page is null || page.NextCursor is not null); i++)
+        {
+            var url = cursor is null
+                ? $"/books?limit={limit}"
+                : $"/books?limit={limit}&cursor={Uri.EscapeDataString(cursor)}";
+            page = await GetAsync<CursorPage<BookDto>>(url);
+            foreach (var b in page.Items)
+                seen.Add(b.Id);
+            cursor = page.NextCursor;
+        }
+
+        return seen;
     }
 
     [Test]
@@ -95,4 +147,5 @@ public class SystemFlowTests
     private sealed record TopBorrowerDto(UserDto User, long BorrowCount);
     private sealed record CoBorrowedDto(BookDto Book, long CoBorrowerCount);
     private sealed record ReadingPaceDto(bool Computable, double? PagesPerDay, string? Reason);
+    private sealed record CursorPage<T>(List<T> Items, string? NextCursor);
 }

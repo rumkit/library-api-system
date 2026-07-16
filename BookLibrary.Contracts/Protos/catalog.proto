@@ -11,6 +11,8 @@ package catalog;
 service CatalogService {
   rpc GetBook (GetBookRequest) returns (Book);
   rpc ListBooks (ListBooksRequest) returns (ListBooksResponse);
+  rpc CreateBook (CreateBookRequest) returns (Book);
+  rpc DeleteBook (DeleteBookRequest) returns (DeleteBookResponse);
   rpc GetUser (GetUserRequest) returns (User);
 
   // Inventory insight: what are the most borrowed books?
@@ -46,11 +48,28 @@ message GetUserRequest {
 
 message ListBooksRequest {
   int32 limit = 1;
-  int32 skip = 2;
+  optional string cursor = 2;
 }
 
 message ListBooksResponse {
   repeated Book books = 1;
+  optional string next_cursor = 2;
+}
+
+message CreateBookRequest {
+  string title = 1;
+  string author = 2;
+  int32 page_count = 3;
+  int32 year = 4;
+}
+
+message DeleteBookRequest {
+  string id = 1;
+}
+
+message DeleteBookResponse {
+  // Open loans closed by this delete (the "book was lost" flow).
+  int32 closed_loans = 1;
 }
 
 message GetMostBorrowedBooksRequest {

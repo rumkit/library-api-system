@@ -28,13 +28,18 @@ public static class CatalogEndpoints
             CatalogService.CatalogServiceClient client,
             CancellationToken ct,
             int limit = DefaultLimit,
-            int skip = 0) =>
+            string? cursor = null) =>
         {
-            var reply = await client.ListBooksAsync(
-                new ListBooksRequest { Limit = limit, Skip = skip }, cancellationToken: ct);
-            return Results.Ok(reply.Books.Select(b => b.ToDto()));
+            var request = new ListBooksRequest { Limit = limit };
+            if (cursor is not null) request.Cursor = cursor;
+            var reply = await client.ListBooksAsync(request, cancellationToken: ct);
+            return Results.Ok(new CursorPage<BookDto>(
+                reply.Books.Select(b => b.ToDto()).ToList(),
+                reply.HasNextCursor ? reply.NextCursor : null));
         })
-        .WithSummary("List books (bounded by limit/skip).");
+        .WithSummary("List books, cursor-paginated.")
+        .Produces<CursorPage<BookDto>>()
+        .ProducesProblem(StatusCodes.Status400BadRequest);
 
         books.MapGet("/{id:guid}", async (
             Guid id, CatalogService.CatalogServiceClient client, CancellationToken ct) =>
@@ -42,7 +47,44 @@ public static class CatalogEndpoints
             var book = await client.GetBookAsync(new GetBookRequest { Id = id.ToString() }, cancellationToken: ct);
             return Results.Ok(book.ToDto());
         })
-        .WithSummary("Get a single book by id.");
+        .WithSummary("Get a single book by id.")
+        .Produces<BookDto>()
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        books.MapPost("/", async (
+            CreateBookRequestDto request,
+            CatalogService.CatalogServiceClient client,
+            InsightCacheInvalidator cacheInvalidator,
+            CancellationToken ct) =>
+        {
+            var book = await client.CreateBookAsync(new CreateBookRequest
+            {
+                Title = request.Title,
+                Author = request.Author,
+                PageCount = request.PageCount,
+                Year = request.Year,
+            }, cancellationToken: ct);
+            await cacheInvalidator.InvalidateAsync(ct);
+            var dto = book.ToDto();
+            return Results.Created($"/books/{dto.Id}", dto);
+        })
+        .WithSummary("Create a book.")
+        .Produces<BookDto>(StatusCodes.Status201Created)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        books.MapDelete("/{id:guid}", async (
+            Guid id,
+            CatalogService.CatalogServiceClient client,
+            InsightCacheInvalidator cacheInvalidator,
+            CancellationToken ct) =>
+        {
+            var reply = await client.DeleteBookAsync(new DeleteBookRequest { Id = id.ToString() }, cancellationToken: ct);
+            await cacheInvalidator.InvalidateAsync(ct);
+            return Results.Ok(new DeleteBookResultDto(reply.ClosedLoans));
+        })
+        .WithSummary("Delete a book. Any open loan on it is force-closed (lost-book flow).")
+        .Produces<DeleteBookResultDto>()
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         app.MapGet("/users/{id:guid}", async (
             Guid id, CatalogService.CatalogServiceClient client, CancellationToken ct) =>
