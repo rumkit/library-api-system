@@ -527,6 +527,284 @@ public class CatalogServiceTests
         }
     }
 
+    [Test]
+    public async Task CreateLoan_WhenValid_ShouldSnapshotBookAndUserFields()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "Snapshot Title", Author = "Snapshot Author", PageCount = 100 });
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "Snapshot User" });
+        });
+        using (factory)
+        {
+            var loan = await client.CreateLoanAsync(new CreateLoanRequest
+            {
+                BookId = B(1).ToString(), UserId = U(1).ToString(),
+            });
+
+            await Assert.That(loan.BookTitle).IsEqualTo("Snapshot Title");
+            await Assert.That(loan.BookAuthor).IsEqualTo("Snapshot Author");
+            await Assert.That(loan.UserName).IsEqualTo("Snapshot User");
+        }
+    }
+
+    [Test]
+    public async Task CreateLoan_WhenBookUnknown_ShouldThrowNotFound()
+    {
+        var (client, factory) = await StartAsync(db => db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" }));
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateLoanAsync(new CreateLoanRequest
+                {
+                    BookId = B(99).ToString(), UserId = U(1).ToString(),
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        }
+    }
+
+    [Test]
+    public async Task CreateLoan_WhenUserUnknown_ShouldThrowNotFound()
+    {
+        var (client, factory) = await StartAsync(db =>
+            db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 }));
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateLoanAsync(new CreateLoanRequest
+                {
+                    BookId = B(1).ToString(), UserId = U(99).ToString(),
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        }
+    }
+
+    [Test]
+    public async Task CreateLoan_WhenBookAlreadyOnLoan_ShouldThrowFailedPrecondition()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Users.InsertManyAsync([new User { Id = U(1), Name = "U1" }, new User { Id = U(2), Name = "U2" }]);
+        });
+        using (factory)
+        {
+            await client.CreateLoanAsync(new CreateLoanRequest { BookId = B(1).ToString(), UserId = U(1).ToString() });
+
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateLoanAsync(new CreateLoanRequest
+                {
+                    BookId = B(1).ToString(), UserId = U(2).ToString(),
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.FailedPrecondition);
+        }
+    }
+
+    [Test]
+    public async Task CreateLoan_WhenBookPreviouslyReturned_ShouldSucceed()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Users.InsertManyAsync([new User { Id = U(1), Name = "U1" }, new User { Id = U(2), Name = "U2" }]);
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = Guid.NewGuid(),
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
+                BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
+            });
+        });
+        using (factory)
+        {
+            var loan = await client.CreateLoanAsync(new CreateLoanRequest
+            {
+                BookId = B(1).ToString(), UserId = U(2).ToString(),
+            });
+
+            await Assert.That(loan.UserId).IsEqualTo(U(2).ToString());
+        }
+    }
+
+    [Test]
+    public async Task CreateLoan_WhenBorrowedAtInFuture_ShouldThrowInvalidArgument()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+        });
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateLoanAsync(new CreateLoanRequest
+                {
+                    BookId = B(1).ToString(), UserId = U(1).ToString(),
+                    BorrowedAt = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.UtcNow.AddDays(1)),
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    [Test]
+    public async Task ReturnLoan_WhenOpen_ShouldCloseAndReturnLoan()
+    {
+        var loanId = Guid.NewGuid();
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = loanId,
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
+                BorrowedAt = Recent, ReturnedAt = null,
+            });
+        });
+        using (factory)
+        {
+            var loan = await client.ReturnLoanAsync(new ReturnLoanRequest { Id = loanId.ToString() });
+
+            await Assert.That(loan.ReturnedAt).IsNotNull();
+        }
+    }
+
+    [Test]
+    public async Task ReturnLoan_WhenAlreadyReturned_ShouldThrowFailedPrecondition()
+    {
+        var loanId = Guid.NewGuid();
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = loanId,
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
+                BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
+            });
+        });
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.ReturnLoanAsync(new ReturnLoanRequest { Id = loanId.ToString() }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.FailedPrecondition);
+        }
+    }
+
+    [Test]
+    public async Task ReturnLoan_WhenUnknown_ShouldThrowNotFound()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.ReturnLoanAsync(new ReturnLoanRequest { Id = Guid.NewGuid().ToString() }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        }
+    }
+
+    [Test]
+    public async Task ReturnLoan_WhenReturnedAtBeforeBorrowedAt_ShouldThrowInvalidArgument()
+    {
+        var loanId = Guid.NewGuid();
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = loanId,
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
+                BorrowedAt = Recent, ReturnedAt = null,
+            });
+        });
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.ReturnLoanAsync(new ReturnLoanRequest
+                {
+                    Id = loanId.ToString(),
+                    ReturnedAt = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(Recent.AddDays(-1)),
+                }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    [Test]
+    public async Task ListLoans_WhenOpenOnly_ShouldReturnOnlyOpenLoans()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertManyAsync([
+                new Book { Id = B(1), Title = "B1", Author = "A", PageCount = 100 },
+                new Book { Id = B(2), Title = "B2", Author = "A", PageCount = 100 },
+            ]);
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+            await db.Loans.InsertManyAsync([
+                new Loan
+                {
+                    Id = Guid.NewGuid(), BookId = B(1), BookTitle = "B1", BookAuthor = "A",
+                    UserId = U(1), UserName = "U1", BorrowedAt = Recent, ReturnedAt = null,
+                },
+                new Loan
+                {
+                    Id = Guid.NewGuid(), BookId = B(2), BookTitle = "B2", BookAuthor = "A",
+                    UserId = U(1), UserName = "U1", BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
+                },
+            ]);
+        });
+        using (factory)
+        {
+            var reply = await client.ListLoansAsync(new ListLoansRequest { Limit = 20, OpenOnly = true });
+
+            await Assert.That(reply.Loans.Count).IsEqualTo(1);
+            await Assert.That(reply.Loans[0].BookId).IsEqualTo(B(1).ToString());
+        }
+    }
+
+    [Test]
+    public async Task ListLoans_WhenFilteredByUser_ShouldReturnOnlyThatUsersLoans()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Books.InsertManyAsync([
+                new Book { Id = B(1), Title = "B1", Author = "A", PageCount = 100 },
+                new Book { Id = B(2), Title = "B2", Author = "A", PageCount = 100 },
+            ]);
+            await db.Users.InsertManyAsync([new User { Id = U(1), Name = "U1" }, new User { Id = U(2), Name = "U2" }]);
+            await db.Loans.InsertManyAsync([
+                new Loan
+                {
+                    Id = Guid.NewGuid(), BookId = B(1), BookTitle = "B1", BookAuthor = "A",
+                    UserId = U(1), UserName = "U1", BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
+                },
+                new Loan
+                {
+                    Id = Guid.NewGuid(), BookId = B(2), BookTitle = "B2", BookAuthor = "A",
+                    UserId = U(2), UserName = "U2", BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
+                },
+            ]);
+        });
+        using (factory)
+        {
+            var reply = await client.ListLoansAsync(new ListLoansRequest { Limit = 20, UserId = U(1).ToString() });
+
+            await Assert.That(reply.Loans.Count).IsEqualTo(1);
+            await Assert.That(reply.Loans[0].UserId).IsEqualTo(U(1).ToString());
+        }
+    }
+
     private static Loan Loan(int user, int book) => new()
     {
         Id = Guid.NewGuid(),

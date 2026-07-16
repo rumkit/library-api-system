@@ -18,6 +18,10 @@ service CatalogService {
   rpc CreateUser (CreateUserRequest) returns (User);
   rpc UpdateUser (UpdateUserRequest) returns (User);
   rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+  rpc GetLoan (GetLoanRequest) returns (Loan);
+  rpc ListLoans (ListLoansRequest) returns (ListLoansResponse);
+  rpc CreateLoan (CreateLoanRequest) returns (Loan);
+  rpc ReturnLoan (ReturnLoanRequest) returns (Loan);
 
   // Inventory insight: what are the most borrowed books?
   rpc GetMostBorrowedBooks (GetMostBorrowedBooksRequest) returns (MostBorrowedBooksResponse);
@@ -74,6 +78,50 @@ message DeleteUserRequest {
 }
 
 message DeleteUserResponse {
+}
+
+// A lending event. Title/author/name are snapshots taken at borrow time — see
+// BookLibrary.Catalog/Domain/Loan.cs and docs/data-schema.md.
+message Loan {
+  string id = 1;
+  string book_id = 2;
+  string book_title = 3;
+  string book_author = 4;
+  string user_id = 5;
+  string user_name = 6;
+  google.protobuf.Timestamp borrowed_at = 7;
+  // Absent = open loan (still out).
+  google.protobuf.Timestamp returned_at = 8;
+}
+
+message GetLoanRequest {
+  string id = 1;
+}
+
+message ListLoansRequest {
+  int32 limit = 1;
+  optional string cursor = 2;
+  optional string user_id = 3;
+  optional string book_id = 4;
+  optional bool open_only = 5;
+}
+
+message ListLoansResponse {
+  repeated Loan loans = 1;
+  optional string next_cursor = 2;
+}
+
+message CreateLoanRequest {
+  string book_id = 1;
+  string user_id = 2;
+  // Defaults to now when absent. Must not be in the future.
+  optional google.protobuf.Timestamp borrowed_at = 3;
+}
+
+message ReturnLoanRequest {
+  string id = 1;
+  // Defaults to now when absent.
+  optional google.protobuf.Timestamp returned_at = 2;
 }
 
 message ListBooksRequest {

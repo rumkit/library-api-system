@@ -162,6 +162,85 @@ public static class CatalogEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
 
+        var loans = app.MapGroup("/loans").WithTags("Loans");
+
+        loans.MapGet("/", async (
+            CatalogService.CatalogServiceClient client,
+            CancellationToken ct,
+            int limit = DefaultLimit,
+            string? cursor = null,
+            Guid? userId = null,
+            Guid? bookId = null,
+            bool? openOnly = null) =>
+        {
+            var request = new ListLoansRequest { Limit = limit };
+            if (cursor is not null) request.Cursor = cursor;
+            if (userId is { } u) request.UserId = u.ToString();
+            if (bookId is { } b) request.BookId = b.ToString();
+            if (openOnly is { } o) request.OpenOnly = o;
+            var reply = await client.ListLoansAsync(request, cancellationToken: ct);
+            return Results.Ok(new CursorPage<LoanDto>(
+                reply.Loans.Select(l => l.ToDto()).ToList(),
+                reply.HasNextCursor ? reply.NextCursor : null));
+        })
+        .WithSummary("List loans, cursor-paginated. Optionally filter by userId, bookId, openOnly.")
+        .Produces<CursorPage<LoanDto>>()
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        loans.MapGet("/{id:guid}", async (
+            Guid id, CatalogService.CatalogServiceClient client, CancellationToken ct) =>
+        {
+            var loan = await client.GetLoanAsync(new GetLoanRequest { Id = id.ToString() }, cancellationToken: ct);
+            return Results.Ok(loan.ToDto());
+        })
+        .WithSummary("Get a single loan by id.")
+        .Produces<LoanDto>()
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        loans.MapPost("/", async (
+            CreateLoanRequestDto request,
+            CatalogService.CatalogServiceClient client,
+            InsightCacheInvalidator cacheInvalidator,
+            CancellationToken ct) =>
+        {
+            var grpcRequest = new CreateLoanRequest
+            {
+                BookId = request.BookId.ToString(),
+                UserId = request.UserId.ToString(),
+            };
+            if (request.BorrowedAt.ToTimestamp() is { } borrowedAt) grpcRequest.BorrowedAt = borrowedAt;
+
+            var loan = await client.CreateLoanAsync(grpcRequest, cancellationToken: ct);
+            await cacheInvalidator.InvalidateAsync(ct);
+            var dto = loan.ToDto();
+            return Results.Created($"/loans/{dto.Id}", dto);
+        })
+        .WithSummary("Create a loan (borrow a book). Rejected with 409 if the book is already on loan.")
+        .Produces<LoanDto>(StatusCodes.Status201Created)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        loans.MapPost("/{id:guid}/return", async (
+            Guid id,
+            ReturnLoanRequestDto? request,
+            CatalogService.CatalogServiceClient client,
+            InsightCacheInvalidator cacheInvalidator,
+            CancellationToken ct) =>
+        {
+            var grpcRequest = new ReturnLoanRequest { Id = id.ToString() };
+            if (request?.ReturnedAt.ToTimestamp() is { } returnedAt) grpcRequest.ReturnedAt = returnedAt;
+
+            var loan = await client.ReturnLoanAsync(grpcRequest, cancellationToken: ct);
+            await cacheInvalidator.InvalidateAsync(ct);
+            return Results.Ok(loan.ToDto());
+        })
+        .WithSummary("Return a loan (close it). The only legal loan mutation; loans are never edited or deleted.")
+        .Produces<LoanDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
         var insights = app.MapGroup("/insights").WithTags("Insights");
 
         insights.MapGet("/most-borrowed", async (

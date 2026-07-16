@@ -27,6 +27,12 @@ internal static class ContractMapping
             ? new ReadingPaceDto(true, r.PagesPerDay, null)
             : new ReadingPaceDto(false, null, r.Reason);
 
+    public static LoanDto ToDto(this Proto.Loan loan) =>
+        new(
+            Guid.Parse(loan.Id), Guid.Parse(loan.BookId), loan.BookTitle, loan.BookAuthor,
+            Guid.Parse(loan.UserId), loan.UserName, loan.BorrowedAt.ToDateTime(),
+            loan.ReturnedAt?.ToDateTime());
+
     /// <summary>Interprets a nullable query DateTime as UTC and converts it to a proto Timestamp.</summary>
     public static Timestamp? ToTimestamp(this DateTime? value) =>
         value is null ? null : Timestamp.FromDateTime(DateTime.SpecifyKind(value.Value, DateTimeKind.Utc));

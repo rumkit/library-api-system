@@ -162,6 +162,100 @@ public sealed partial class CatalogGrpcService(
         return new DeleteBookResponse { ClosedLoans = (int)closedLoans };
     }
 
+    public override async Task<Loan> GetLoan(GetLoanRequest request, ServerCallContext context)
+    {
+        var id = ParseId(request.Id, nameof(request.Id));
+        var loan = await loans.GetAsync(id, context.CancellationToken)
+                   ?? throw NotFound($"Loan '{id}' was not found.");
+        return mapper.ToContract(loan);
+    }
+
+    public override async Task<ListLoansResponse> ListLoans(ListLoansRequest request, ServerCallContext context)
+    {
+        var limit = NormalizeLimit(request.Limit);
+        var cursor = request.HasCursor ? request.Cursor : null;
+        if (cursor is not null && !Cursor.TryDecode(cursor, out _, out _))
+            throw InvalidArgument("cursor is not valid.");
+
+        Guid? userId = request.HasUserId ? ParseId(request.UserId, nameof(request.UserId)) : null;
+        Guid? bookId = request.HasBookId ? ParseId(request.BookId, nameof(request.BookId)) : null;
+        var filter = new LoanFilter(userId, bookId, request.HasOpenOnly && request.OpenOnly);
+
+        var page = await loans.ListAsync(limit, cursor, filter, context.CancellationToken);
+        var response = new ListLoansResponse();
+        response.Loans.AddRange(page.Items.Select(mapper.ToContract));
+        if (page.NextCursor is not null)
+            response.NextCursor = page.NextCursor;
+        return response;
+    }
+
+    public override async Task<Loan> CreateLoan(CreateLoanRequest request, ServerCallContext context)
+    {
+        var bookId = ParseId(request.BookId, nameof(request.BookId));
+        var userId = ParseId(request.UserId, nameof(request.UserId));
+
+        var borrowedAt = request.BorrowedAt?.ToDateTime() ?? DateTime.UtcNow;
+        if (borrowedAt > DateTime.UtcNow)
+            throw InvalidArgument("borrowed_at must not be in the future.");
+
+        var book = await books.GetAsync(bookId, context.CancellationToken)
+                   ?? throw NotFound($"Book '{bookId}' was not found.");
+        var user = await users.GetAsync(userId, context.CancellationToken)
+                   ?? throw NotFound($"User '{userId}' was not found.");
+
+        // Friendly read check first (good error message); the unique partial index on
+        // {BookId: 1, ReturnedAt: null} is the actual correctness guarantee under concurrency —
+        // both are needed, they are not redundant.
+        if (await loans.FindOpenByBookAsync(bookId, context.CancellationToken) is not null)
+            throw FailedPrecondition($"Book '{bookId}' is already on loan.");
+
+        var loan = new Domain.Loan
+        {
+            Id = Guid.CreateVersion7(),
+            BookId = book.Id,
+            BookTitle = book.Title,
+            BookAuthor = book.Author,
+            UserId = user.Id,
+            UserName = user.Name,
+            BorrowedAt = borrowedAt,
+            ReturnedAt = null,
+        };
+
+        var (outcome, created) = await loans.CreateAsync(loan, context.CancellationToken);
+        if (outcome == CreateLoanOutcome.BookAlreadyOnLoan)
+        {
+            Log.LoanRejected(logger, bookId, "concurrent create lost the race");
+            throw new RpcException(new Status(StatusCode.AlreadyExists, "Book was borrowed concurrently."));
+        }
+
+        Log.LoanCreated(logger, created!.Id, bookId, userId);
+        return mapper.ToContract(created);
+    }
+
+    public override async Task<Loan> ReturnLoan(ReturnLoanRequest request, ServerCallContext context)
+    {
+        var id = ParseId(request.Id, nameof(request.Id));
+        var returnedAt = request.ReturnedAt?.ToDateTime() ?? DateTime.UtcNow;
+        if (returnedAt > DateTime.UtcNow)
+            throw InvalidArgument("returned_at must not be in the future.");
+
+        // There is deliberately no way to reopen a loan, change borrowed_at, or delete a loan —
+        // this endpoint's only legal transition is open -> closed. Read first to shape the error
+        // message (not found vs already returned); CloseAsync's atomic update is what actually
+        // guards against a concurrent double-return.
+        var existing = await loans.GetAsync(id, context.CancellationToken)
+                       ?? throw NotFound($"Loan '{id}' was not found.");
+        if (returnedAt < existing.BorrowedAt)
+            throw InvalidArgument("returned_at must not be before borrowed_at.");
+
+        var closed = await loans.CloseAsync(id, returnedAt, context.CancellationToken);
+        if (closed is null)
+            throw FailedPrecondition($"Loan '{id}' was already returned.");
+
+        Log.LoanReturned(logger, id, returnedAt);
+        return mapper.ToContract(closed);
+    }
+
     public override async Task<MostBorrowedBooksResponse> GetMostBorrowedBooks(
         GetMostBorrowedBooksRequest request, ServerCallContext context)
     {
@@ -333,5 +427,15 @@ public sealed partial class CatalogGrpcService(
         [LoggerMessage(Level = LogLevel.Warning,
             Message = "User delete rejected: id={UserId}, openLoans={OpenLoans}")]
         public static partial void UserDeleteRejected(ILogger logger, Guid userId, long openLoans);
+
+        [LoggerMessage(Level = LogLevel.Information,
+            Message = "Loan created: id={LoanId}, bookId={BookId}, userId={UserId}")]
+        public static partial void LoanCreated(ILogger logger, Guid loanId, Guid bookId, Guid userId);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "Loan returned: id={LoanId}, returnedAt={ReturnedAt}")]
+        public static partial void LoanReturned(ILogger logger, Guid loanId, DateTime returnedAt);
+
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Loan create rejected: bookId={BookId}, reason={Reason}")]
+        public static partial void LoanRejected(ILogger logger, Guid bookId, string reason);
     }
 }

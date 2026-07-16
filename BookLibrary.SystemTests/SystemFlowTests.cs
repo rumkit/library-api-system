@@ -140,6 +140,70 @@ public class SystemFlowTests
     }
 
     [Test]
+    public async Task BorrowThenReturn_ShouldMoveBookThroughLoanLifecycle()
+    {
+        var book = (await (await Host.ApiClient.PostAsJsonAsync("/books", new
+        {
+            Title = "Lifecycle Book", Author = "A", PageCount = 100, Year = 2020,
+        })).Content.ReadFromJsonAsync<BookDto>(Json))!;
+        var user = (await (await Host.ApiClient.PostAsJsonAsync("/users", new { Name = "Lifecycle User" }))
+            .Content.ReadFromJsonAsync<UserDto>(Json))!;
+        var otherUser = (await (await Host.ApiClient.PostAsJsonAsync("/users", new { Name = "Lifecycle User 2" }))
+            .Content.ReadFromJsonAsync<UserDto>(Json))!;
+
+        var firstLoanResponse = await Host.ApiClient.PostAsJsonAsync("/loans", new { BookId = book.Id, UserId = user.Id });
+        await Assert.That(firstLoanResponse.StatusCode).IsEqualTo(HttpStatusCode.Created);
+        var firstLoan = (await firstLoanResponse.Content.ReadFromJsonAsync<LoanDto>(Json))!;
+
+        var openLoans = await GetAsync<CursorPage<LoanDto>>($"/loans?limit=100&bookId={book.Id}&openOnly=true");
+        await Assert.That(openLoans.Items.Select(l => l.Id)).Contains(firstLoan.Id);
+
+        var secondLoanResponse = await Host.ApiClient.PostAsJsonAsync(
+            "/loans", new { BookId = book.Id, UserId = otherUser.Id });
+        await Assert.That(secondLoanResponse.StatusCode).IsEqualTo(HttpStatusCode.Conflict);
+
+        var returnResponse = await Host.ApiClient.PostAsJsonAsync($"/loans/{firstLoan.Id}/return", new { });
+        await Assert.That(returnResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        var returned = (await returnResponse.Content.ReadFromJsonAsync<LoanDto>(Json))!;
+        await Assert.That(returned.ReturnedAt).IsNotNull();
+
+        var thirdLoanResponse = await Host.ApiClient.PostAsJsonAsync(
+            "/loans", new { BookId = book.Id, UserId = otherUser.Id });
+        await Assert.That(thirdLoanResponse.StatusCode).IsEqualTo(HttpStatusCode.Created);
+
+        // Clean up: deleting the book auto-closes the still-open third loan, then both users can go.
+        await Host.ApiClient.DeleteAsync($"/books/{book.Id}");
+        await Host.ApiClient.DeleteAsync($"/users/{user.Id}");
+        await Host.ApiClient.DeleteAsync($"/users/{otherUser.Id}");
+    }
+
+    [Test]
+    public async Task PostLoan_ShouldInvalidateMostBorrowedCache()
+    {
+        var book = (await (await Host.ApiClient.PostAsJsonAsync("/books", new
+        {
+            Title = "Cache Invalidation Book", Author = "A", PageCount = 100, Year = 2020,
+        })).Content.ReadFromJsonAsync<BookDto>(Json))!;
+        var user = (await (await Host.ApiClient.PostAsJsonAsync("/users", new { Name = "Cache Invalidation User" }))
+            .Content.ReadFromJsonAsync<UserDto>(Json))!;
+
+        var before = await GetAsync<List<MostBorrowedDto>>("/insights/most-borrowed?limit=1000");
+        await Assert.That(before.Select(b => b.Book.Id)).DoesNotContain(book.Id);
+
+        var loanResponse = await Host.ApiClient.PostAsJsonAsync("/loans", new { BookId = book.Id, UserId = user.Id });
+        await Assert.That(loanResponse.StatusCode).IsEqualTo(HttpStatusCode.Created);
+
+        var after = await GetAsync<List<MostBorrowedDto>>("/insights/most-borrowed?limit=1000");
+        var entry = after.SingleOrDefault(b => b.Book.Id == book.Id);
+        await Assert.That(entry).IsNotNull();
+        await Assert.That(entry!.BorrowCount).IsEqualTo(1);
+
+        // Clean up: deleting the book auto-closes the open loan.
+        await Host.ApiClient.DeleteAsync($"/books/{book.Id}");
+        await Host.ApiClient.DeleteAsync($"/users/{user.Id}");
+    }
+
+    [Test]
     public async Task MostBorrowed_ShouldRankCleanCodeFirst()
     {
         var result = await GetAsync<List<MostBorrowedDto>>("/insights/most-borrowed?limit=10");
@@ -195,5 +259,8 @@ public class SystemFlowTests
     private sealed record TopBorrowerDto(UserDto User, long BorrowCount);
     private sealed record CoBorrowedDto(BookDto Book, long CoBorrowerCount);
     private sealed record ReadingPaceDto(bool Computable, double? PagesPerDay, string? Reason);
+    private sealed record LoanDto(
+        Guid Id, Guid BookId, string BookTitle, string BookAuthor,
+        Guid UserId, string UserName, DateTime BorrowedAt, DateTime? ReturnedAt);
     private sealed record CursorPage<T>(List<T> Items, string? NextCursor);
 }

@@ -18,6 +18,14 @@ public sealed record CreateUserRequestDto(string Name);
 
 public sealed record UpdateUserRequestDto(string Name);
 
+public sealed record LoanDto(
+    Guid Id, Guid BookId, string BookTitle, string BookAuthor,
+    Guid UserId, string UserName, DateTime BorrowedAt, DateTime? ReturnedAt);
+
+public sealed record CreateLoanRequestDto(Guid BookId, Guid UserId, DateTime? BorrowedAt);
+
+public sealed record ReturnLoanRequestDto(DateTime? ReturnedAt);
+
 public sealed record MostBorrowedBookDto(BookDto Book, long BorrowCount);
 
 public sealed record TopBorrowerDto(UserDto User, long BorrowCount);
