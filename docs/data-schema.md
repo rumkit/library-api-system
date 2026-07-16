@@ -130,11 +130,15 @@ filter by. Indexes are (idempotently) created on startup by
 | ---------- | ----- | ------ |
 | `Loans` | `{ BookId: 1 }` | Most-borrowed grouping, co-borrowed lookups. |
 | `Loans` | `{ UserId: 1 }` | Top-borrowers grouping. |
-| `Loans` | `{ BorrowedAt: 1 }` | Window (`[from, to)`) filtering. |
+| `Loans` | `{ BorrowedAt: 1 }` | Window (`[from, to)`) filtering. Redundant prefix of the compound index below; kept because the initializer is create-only (never drops an index). |
 | `Loans` | `{ UserId: 1, BookId: 1 }` | Reading-pace lookup (a user's loans of one book). |
+| `Loans` | `{ BookId: 1 }` unique, partial (`ReturnedAt: null`) — named `ux_loans_open_book` | **Double-loan guard.** Enforces "a book cannot have two open loans" at the database level — see [Design notes](#design-notes). |
+| `Loans` | `{ BorrowedAt: 1, _id: 1 }` | Cursor pagination over `/loans` (newest-first keyset). |
+| `Books` | `{ Title: 1, _id: 1 }` | Cursor pagination over `/books`. |
+| `Users` | `{ Name: 1, _id: 1 }` | Cursor pagination over `/users`. |
 
-`Books` and `Users` rely on the default `_id` index for their point lookups and for the insight
-`$lookup` joins.
+`Books` and `Users` no longer rely solely on the default `_id` index — each also has the compound
+index above for cursor-paginated listing.
 
 ---
 
@@ -172,6 +176,19 @@ filter by. Indexes are (idempotently) created on startup by
   insight (open, or held at least one day) is computed by the aggregation pipelines and the
   reading-pace logic — it is not a persisted flag — so the rule has a single definition and the raw
   loan history stays intact. See the business rules in the [README](../README.md#business-rules-what-the-numbers-mean).
+- **One `Book` document = one physical copy.** There is no `copies` field or per-copy entity; two
+  physical copies of the same title are two separate `Book` documents with distinct ids (duplicate
+  titles are allowed for exactly this reason). This is what makes "a book cannot be borrowed while
+  already on loan" coherent as a per-document rule.
+- **The open-loan uniqueness invariant is enforced by index, not application code.** The unique
+  partial index `ux_loans_open_book` (`{BookId: 1}` where `ReturnedAt: null`) is what actually
+  guarantees a book can't have two open loans under concurrent writes; the service layer's read
+  check before insert only exists to produce a friendlier error message in the common case.
+- **Cursor pagination requires a `(sortKey, _id)` total order.** `Books`/`Users`/`Loans` listings
+  page by an opaque keyset cursor over `(Title, _id)`, `(Name, _id)` and `(BorrowedAt, _id)`
+  respectively — the `_id` tiebreaker is required because the primary sort key (title, name,
+  borrow timestamp) is not unique on its own, and a keyset cursor needs a total order to avoid
+  skipping or repeating rows when values tie. This is why the compound indexes above exist.
 
 ---
 
@@ -195,3 +212,11 @@ the domain types and inserts them. The catalogue is a curated real-world set —
   Code loan (reading pace 46.4), and the curated books at the front (Clean Code, Pragmatic, DDD,
   Refactoring, Mythical Man-Month, and a zero-page zine) exercise every insight and reading-pace
   branch.
+- **No book has two open loans.** `ux_loans_open_book` (see [Indexes](#indexes)) enforces this at the
+  database level, so the seed data must satisfy it or the Catalog host fails to start. One seeded
+  loan (`…-0001-000000000045`, borrowed by user `…-0002-000000000003`) was originally a second open
+  loan on a book that already had one open loan; its `held` was changed from `null` to `120` (a
+  completed 120-day loan) to satisfy the invariant. This is safe for the pinned insight answers above
+  (the loan was already counted as an open loan by the counted-borrow rule; it stays counted) — **17**
+  loans are open in the seeded data, not 18. Anyone adding seed loans must preserve the
+  no-two-open-loans-per-book invariant or the seeder/Catalog boot will fail on the unique index.

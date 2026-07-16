@@ -32,7 +32,9 @@ separate processes so the gRPC boundary is real, not decorative:
 ### Key design decisions
 
 - **gRPC as a true process boundary.** The REST edge holds no business logic; it translates HTTP
-  to gRPC and back. Backend gRPC status codes map to HTTP: `NotFound → 404`, `InvalidArgument → 400`.
+  to gRPC and back. Backend gRPC status codes map to HTTP: `NotFound → 404`, `InvalidArgument → 400`,
+  `FailedPrecondition`/`AlreadyExists → 409` (state conflicts — see
+  [Business rules](#business-rules-what-the-numbers-mean)).
 - **Domain == persistence model.** At this scale a separate persistence DTO layer would be ceremony.
   The gRPC contract is the only separate model, mapped with **Mapperly** (compile-time, no reflection).
 - **Ids: `Guid` (v7-friendly) stored as strings** so Mongo documents stay reviewer-readable. At high
@@ -41,9 +43,14 @@ separate processes so the gRPC boundary is real, not decorative:
   no background worker, no materialized views. Each insight is a single round trip.
 - **Insight responses cached at the REST edge** with **`HybridCache`** — an in-memory tier today;
   adding a distributed L2 (e.g. Redis) later is a registration-only change with no call-site edits.
-  Expiry is TTL-based (the API is read-only, so there are no writes to invalidate on) and tunable via
-  the `CatalogCache` config section; entries are tagged `insights` for future tag-based eviction.
-  Top-borrowers uses a shorter TTL because an omitted window drifts with `now`.
+  Expiry is TTL-based and tunable via the `CatalogCache` config section; every entry is tagged
+  `insights`, and every successful write (book/user/loan create, update, delete) evicts the whole
+  tag via `InsightCacheInvalidator` — a new loan alone can move most-borrowed, top-borrowers *and*
+  co-borrowed at once, so tag-based bulk eviction is simpler than tracking per-entry dependencies.
+  Top-borrowers uses a shorter TTL because an omitted window drifts with `now`. **Known limitation:**
+  the cache is in-memory-only, so with more than one Api replica each replica evicts only its own
+  copy; the TTLs bound how stale another replica's cache can get. Adding a distributed L2 makes
+  invalidation cross-replica automatically — no call-site changes needed.
 - **Structured logging** via `[LoggerMessage]` source generators; traces/metrics/logs flow to the
   Aspire dashboard and correlate across the REST→gRPC hop.
 
@@ -73,6 +80,22 @@ These are deliberate product decisions — documented here because they change w
 - **Co-borrowed books** — users who borrowed X → their other counted borrows → **excluding X** →
   ranked by **distinct co-borrower count**, so one heavy reader can't skew a title.
 
+Write rules (the CRUD surface, layered on top of the one-book-one-copy model — see
+[docs/data-schema.md](docs/data-schema.md#design-notes)):
+
+- **A book cannot be borrowed while already on loan.** Enforced both as a friendly read-check
+  (`409 Conflict`) and, under concurrency, by a unique database index — see
+  [docs/data-schema.md](docs/data-schema.md#design-notes).
+- **Deleting a book force-closes any open loan on it** (the "lost book" flow — the physical copy is
+  gone, so the loan can never be closed by a return) and reports how many loans it closed.
+- **Deleting a user is refused (`409 Conflict`) while they hold open loans** — unlike book delete,
+  because the books they hold are still physically out in the world and must come back first. This
+  asymmetry is deliberate, not an inconsistency.
+- **A loan can only be closed (returned), never edited or deleted.** `POST /loans/{id}/return` is
+  the sole legal mutation; loan history is immutable once created.
+- **Renaming a user does not rewrite past loans' snapshotted names** — `Loan.UserName` records the
+  name as it was at borrow time (see [docs/data-schema.md](docs/data-schema.md#design-notes)).
+
 ---
 
 ## Running the application
@@ -98,12 +121,41 @@ populated) from embedded JSON files in `BookLibrary.Seeder/Data/` — a curated 
 100+ books (each with a publication year), 15+ users, and a few hundred loans, hand-shaped to cover
 every insight and every reading-pace branch. See [`docs/data-schema.md`](docs/data-schema.md#sample-data).
 
+### Cursor pagination
+
+Every list endpoint (`/books`, `/users`, `/loans`) is paginated the same way: `?limit=&cursor=`,
+returning `{ "items": [...], "nextCursor": "..." }`. `nextCursor` is `null` on the last page.
+**Cursors are opaque** — created and interpreted by the backend only. Clients must pass a cursor
+back exactly as received and never construct or parse one themselves.
+
+```bash
+GET /books?limit=20                 # first page
+GET /books?limit=20&cursor={cursor} # next page, using the previous response's nextCursor
+```
+
 ### Example requests
 
 ```bash
-GET /books?limit=20&skip=0
-GET /books/{id}
-GET /users/{id}
+# Books
+GET    /books?limit=20
+GET    /books/{id}
+POST   /books                 { "title", "author", "pageCount", "year" }
+DELETE /books/{id}            # force-closes any open loan (lost-book flow)
+
+# Users
+GET    /users?limit=20
+GET    /users/{id}
+POST   /users                 { "name" }
+PUT    /users/{id}            { "name" }   # full replacement; name is the only mutable field
+DELETE /users/{id}            # 409 while the user holds open loans
+
+# Loans
+GET    /loans?limit=20&userId={userId}&bookId={bookId}&openOnly=true
+GET    /loans/{id}
+POST   /loans                 { "bookId", "userId", "borrowedAt"? }   # borrowedAt defaults to now
+POST   /loans/{id}/return     { "returnedAt"? }                       # empty/no body -> now
+
+# Insights
 GET /insights/most-borrowed?limit=10&from=2026-01-01&to=2026-12-31
 GET /insights/top-borrowers?limit=10&from=2026-01-01&to=2026-07-01
 GET /insights/reading-pace?userId={userId}&bookId={bookId}
