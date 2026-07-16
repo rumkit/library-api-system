@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore BookLibrary.slnx
+
+      - name: Build
+        run: dotnet build BookLibrary.slnx --no-restore --configuration Release
+
+      - name: Unit tests - WarmUp
+        run: dotnet test --project BookLibrary.WarmUp.Tests --no-build --configuration Release
+
+      - name: Unit tests - Api
+        run: dotnet test --project BookLibrary.Api.Tests --no-build --configuration Release
+
+      - name: Unit tests - Catalog (Docker-free tier)
+        run: dotnet test --project BookLibrary.Catalog.Tests --no-build --configuration Release --treenode-filter "/*/*.Unit/*/*"
+
+      - name: Catalog tests - unit + integration + functional (needs Docker)
+        run: dotnet test --project BookLibrary.Catalog.Tests --no-build --configuration Release
+
+      - name: System tests (needs Docker)
+        run: dotnet test --project BookLibrary.SystemTests --no-build --configuration Release

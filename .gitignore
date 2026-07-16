@@ -8,6 +8,11 @@ riderModule.iml
 # TUnit's test reports
 /TestResults/
 
+# VS settings
+*.suo
+.vs/
+*.user
+
 # Claude Code personal and temporary files
 .claude/settings.local.json
 CLAUDE.local.md
