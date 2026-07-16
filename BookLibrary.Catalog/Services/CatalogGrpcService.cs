@@ -41,6 +41,71 @@ public sealed partial class CatalogGrpcService(
         return mapper.ToContract(user);
     }
 
+    public override async Task<ListUsersResponse> ListUsers(ListUsersRequest request, ServerCallContext context)
+    {
+        var limit = NormalizeLimit(request.Limit);
+        var cursor = request.HasCursor ? request.Cursor : null;
+        if (cursor is not null && !Cursor.TryDecode(cursor, out _, out _))
+            throw InvalidArgument("cursor is not valid.");
+
+        var page = await users.ListAsync(limit, cursor, context.CancellationToken);
+        var response = new ListUsersResponse();
+        response.Users.AddRange(page.Items.Select(mapper.ToContract));
+        if (page.NextCursor is not null)
+            response.NextCursor = page.NextCursor;
+        return response;
+    }
+
+    public override async Task<User> CreateUser(CreateUserRequest request, ServerCallContext context)
+    {
+        var name = RequireText(request.Name, nameof(request.Name));
+
+        // Duplicate names are allowed: a name is a display label, not an identity.
+        var user = new Domain.User { Id = Guid.CreateVersion7(), Name = name };
+        await users.CreateAsync(user, context.CancellationToken);
+        Log.UserCreated(logger, user.Id, user.Name);
+        return mapper.ToContract(user);
+    }
+
+    public override async Task<User> UpdateUser(UpdateUserRequest request, ServerCallContext context)
+    {
+        var id = ParseId(request.Id, nameof(request.Id));
+        var name = RequireText(request.Name, nameof(request.Name));
+
+        // Renames do not touch loan history: Loan.UserName is a snapshot of the name as it was at
+        // borrow time (see Loan's XML docs and data-schema.md), so a later rename must not rewrite
+        // it. Do not add a cascading update to Loans here.
+        var user = await users.UpdateNameAsync(id, name, context.CancellationToken)
+                   ?? throw NotFound($"User '{id}' was not found.");
+        Log.UserRenamed(logger, id, name);
+        return mapper.ToContract(user);
+    }
+
+    public override async Task<DeleteUserResponse> DeleteUser(DeleteUserRequest request, ServerCallContext context)
+    {
+        var id = ParseId(request.Id, nameof(request.Id));
+        _ = await users.GetAsync(id, context.CancellationToken)
+            ?? throw NotFound($"User '{id}' was not found.");
+
+        // Deliberately asymmetric with book delete: deleting a book closes its open loans (the
+        // book is physically gone), but deleting a user is refused while they hold books, because
+        // those copies are still out in the world and must come back first.
+        var openLoans = await loans.CountOpenByUserAsync(id, context.CancellationToken);
+        if (openLoans > 0)
+        {
+            Log.UserDeleteRejected(logger, id, openLoans);
+            throw FailedPrecondition($"User '{id}' still holds {openLoans} book(s). Close the loans first.");
+        }
+
+        // Accepted race: a loan created between the check above and the delete below leaves an
+        // open loan pointing at a deleted user. The insight pipelines $lookup/$unwind and drop
+        // dangling references, so this degrades gracefully; standalone Mongo has no transactions
+        // to close the window, and that is the documented "no enforced referential integrity" stance.
+        await users.DeleteAsync(id, context.CancellationToken);
+        Log.UserDeleted(logger, id);
+        return new DeleteUserResponse();
+    }
+
     public override async Task<ListBooksResponse> ListBooks(ListBooksRequest request, ServerCallContext context)
     {
         var limit = NormalizeLimit(request.Limit);
@@ -229,6 +294,9 @@ public sealed partial class CatalogGrpcService(
     private static RpcException NotFound(string message) =>
         new(new Status(StatusCode.NotFound, message));
 
+    private static RpcException FailedPrecondition(string message) =>
+        new(new Status(StatusCode.FailedPrecondition, message));
+
     private static partial class Log
     {
         [LoggerMessage(Level = LogLevel.Information,
@@ -252,5 +320,18 @@ public sealed partial class CatalogGrpcService(
         [LoggerMessage(Level = LogLevel.Information,
             Message = "Book deleted: id={BookId}, closedLoans={ClosedLoans}")]
         public static partial void BookDeleted(ILogger logger, Guid bookId, long closedLoans);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "User created: id={UserId}, name={Name}")]
+        public static partial void UserCreated(ILogger logger, Guid userId, string name);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "User renamed: id={UserId}, name={Name}")]
+        public static partial void UserRenamed(ILogger logger, Guid userId, string name);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "User deleted: id={UserId}")]
+        public static partial void UserDeleted(ILogger logger, Guid userId);
+
+        [LoggerMessage(Level = LogLevel.Warning,
+            Message = "User delete rejected: id={UserId}, openLoans={OpenLoans}")]
+        public static partial void UserDeleteRejected(ILogger logger, Guid userId, long openLoans);
     }
 }

@@ -352,6 +352,181 @@ public class CatalogServiceTests
         }
     }
 
+    [Test]
+    public async Task ListUsers_WhenCursorSupplied_ShouldReturnNextPageWithoutOverlap()
+    {
+        var (client, factory) = await StartAsync(db => db.Users.InsertManyAsync(
+            Enumerable.Range(1, 5).Select(n => new User { Id = U(n), Name = $"Name {n:D2}" })));
+        using (factory)
+        {
+            var first = await client.ListUsersAsync(new ListUsersRequest { Limit = 2 });
+            await Assert.That(first.Users.Count).IsEqualTo(2);
+            await Assert.That(first.HasNextCursor).IsTrue();
+
+            var second = await client.ListUsersAsync(new ListUsersRequest { Limit = 2, Cursor = first.NextCursor });
+            await Assert.That(second.Users.Count).IsEqualTo(2);
+
+            var firstIds = first.Users.Select(u => u.Id).ToHashSet();
+            var secondIds = second.Users.Select(u => u.Id).ToHashSet();
+            await Assert.That(firstIds.Overlaps(secondIds)).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task ListUsers_WhenUsersShareName_ShouldPageWithoutDuplicates()
+    {
+        var (client, factory) = await StartAsync(db => db.Users.InsertManyAsync(
+            Enumerable.Range(1, 6).Select(n => new User { Id = U(n), Name = "Same Name" })));
+        using (factory)
+        {
+            var seen = new HashSet<string>();
+            string? cursor = null;
+            ListUsersResponse? page = null;
+            for (var i = 0; i < 10 && (page is null || page.HasNextCursor); i++)
+            {
+                var request = new ListUsersRequest { Limit = 2 };
+                if (cursor is not null) request.Cursor = cursor;
+                page = await client.ListUsersAsync(request);
+                foreach (var u in page.Users)
+                    seen.Add(u.Id);
+                cursor = page.HasNextCursor ? page.NextCursor : null;
+            }
+
+            await Assert.That(seen.Count).IsEqualTo(6);
+        }
+    }
+
+    [Test]
+    public async Task CreateUser_WhenValid_ShouldReturnUserWithGeneratedId()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var user = await client.CreateUserAsync(new CreateUserRequest { Name = "New User" });
+
+            await Assert.That(Guid.TryParse(user.Id, out _)).IsTrue();
+            await Assert.That(user.Name).IsEqualTo("New User");
+        }
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    public async Task CreateUser_WhenNameBlank_ShouldThrowInvalidArgument(string name)
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.CreateUserAsync(new CreateUserRequest { Name = name }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.InvalidArgument);
+        }
+    }
+
+    [Test]
+    public async Task UpdateUser_WhenUnknown_ShouldThrowNotFound()
+    {
+        var (client, factory) = await StartAsync();
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.UpdateUserAsync(new UpdateUserRequest { Id = U(99).ToString(), Name = "X" }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        }
+    }
+
+    [Test]
+    public async Task UpdateUser_WhenRenamed_ShouldNotRewriteLoanHistory()
+    {
+        var loanId = Guid.NewGuid();
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "Old Name" });
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = loanId,
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "Old Name",
+                BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
+            });
+        });
+        using (factory)
+        {
+            var updated = await client.UpdateUserAsync(new UpdateUserRequest { Id = U(1).ToString(), Name = "New Name" });
+            await Assert.That(updated.Name).IsEqualTo("New Name");
+
+            var db = new LibraryDb(new MongoClient(Mongo.ConnectionString).GetDatabase(factory.DatabaseName));
+            var loan = await db.Loans.Find(l => l.Id == loanId).FirstOrDefaultAsync();
+            await Assert.That(loan!.UserName).IsEqualTo("Old Name");
+        }
+    }
+
+    [Test]
+    public async Task DeleteUser_WhenNoOpenLoans_ShouldDelete()
+    {
+        var (client, factory) = await StartAsync(db => db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" }));
+        using (factory)
+        {
+            await client.DeleteUserAsync(new DeleteUserRequest { Id = U(1).ToString() });
+
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.GetUserAsync(new GetUserRequest { Id = U(1).ToString() }));
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        }
+    }
+
+    [Test]
+    public async Task DeleteUser_WhenOpenLoanExists_ShouldThrowFailedPrecondition()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = Guid.NewGuid(),
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
+                BorrowedAt = Recent, ReturnedAt = null,
+            });
+        });
+        using (factory)
+        {
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.DeleteUserAsync(new DeleteUserRequest { Id = U(1).ToString() }));
+
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.FailedPrecondition);
+        }
+    }
+
+    [Test]
+    public async Task DeleteUser_WhenOnlyClosedLoans_ShouldDelete()
+    {
+        var (client, factory) = await StartAsync(async db =>
+        {
+            await db.Users.InsertOneAsync(new User { Id = U(1), Name = "U1" });
+            await db.Books.InsertOneAsync(new Book { Id = B(1), Title = "T", Author = "A", PageCount = 100 });
+            await db.Loans.InsertOneAsync(new Loan
+            {
+                Id = Guid.NewGuid(),
+                BookId = B(1), BookTitle = "T", BookAuthor = "A",
+                UserId = U(1), UserName = "U1",
+                BorrowedAt = Recent, ReturnedAt = Recent.AddDays(5),
+            });
+        });
+        using (factory)
+        {
+            await client.DeleteUserAsync(new DeleteUserRequest { Id = U(1).ToString() });
+
+            var ex = await Assert.ThrowsAsync<RpcException>(async () =>
+                await client.GetUserAsync(new GetUserRequest { Id = U(1).ToString() }));
+            await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        }
+    }
+
     private static Loan Loan(int user, int book) => new()
     {
         Id = Guid.NewGuid(),

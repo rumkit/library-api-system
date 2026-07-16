@@ -14,6 +14,10 @@ service CatalogService {
   rpc CreateBook (CreateBookRequest) returns (Book);
   rpc DeleteBook (DeleteBookRequest) returns (DeleteBookResponse);
   rpc GetUser (GetUserRequest) returns (User);
+  rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+  rpc CreateUser (CreateUserRequest) returns (User);
+  rpc UpdateUser (UpdateUserRequest) returns (User);
+  rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
 
   // Inventory insight: what are the most borrowed books?
   rpc GetMostBorrowedBooks (GetMostBorrowedBooksRequest) returns (MostBorrowedBooksResponse);
@@ -44,6 +48,32 @@ message GetBookRequest {
 
 message GetUserRequest {
   string id = 1;
+}
+
+message ListUsersRequest {
+  int32 limit = 1;
+  optional string cursor = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  optional string next_cursor = 2;
+}
+
+message CreateUserRequest {
+  string name = 1;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message DeleteUserResponse {
 }
 
 message ListBooksRequest {

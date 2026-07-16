@@ -86,14 +86,81 @@ public static class CatalogEndpoints
         .Produces<DeleteBookResultDto>()
         .ProducesProblem(StatusCodes.Status404NotFound);
 
-        app.MapGet("/users/{id:guid}", async (
+        var users = app.MapGroup("/users").WithTags("Users");
+
+        users.MapGet("/", async (
+            CatalogService.CatalogServiceClient client,
+            CancellationToken ct,
+            int limit = DefaultLimit,
+            string? cursor = null) =>
+        {
+            var request = new ListUsersRequest { Limit = limit };
+            if (cursor is not null) request.Cursor = cursor;
+            var reply = await client.ListUsersAsync(request, cancellationToken: ct);
+            return Results.Ok(new CursorPage<UserDto>(
+                reply.Users.Select(u => u.ToDto()).ToList(),
+                reply.HasNextCursor ? reply.NextCursor : null));
+        })
+        .WithSummary("List users, cursor-paginated.")
+        .Produces<CursorPage<UserDto>>()
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        users.MapGet("/{id:guid}", async (
             Guid id, CatalogService.CatalogServiceClient client, CancellationToken ct) =>
         {
             var user = await client.GetUserAsync(new GetUserRequest { Id = id.ToString() }, cancellationToken: ct);
             return Results.Ok(user.ToDto());
         })
-        .WithTags("Users")
-        .WithSummary("Get a single user by id.");
+        .WithSummary("Get a single user by id.")
+        .Produces<UserDto>()
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        users.MapPost("/", async (
+            CreateUserRequestDto request,
+            CatalogService.CatalogServiceClient client,
+            InsightCacheInvalidator cacheInvalidator,
+            CancellationToken ct) =>
+        {
+            var user = await client.CreateUserAsync(new CreateUserRequest { Name = request.Name }, cancellationToken: ct);
+            await cacheInvalidator.InvalidateAsync(ct);
+            var dto = user.ToDto();
+            return Results.Created($"/users/{dto.Id}", dto);
+        })
+        .WithSummary("Create a user.")
+        .Produces<UserDto>(StatusCodes.Status201Created)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        users.MapPut("/{id:guid}", async (
+            Guid id,
+            UpdateUserRequestDto request,
+            CatalogService.CatalogServiceClient client,
+            InsightCacheInvalidator cacheInvalidator,
+            CancellationToken ct) =>
+        {
+            var user = await client.UpdateUserAsync(
+                new UpdateUserRequest { Id = id.ToString(), Name = request.Name }, cancellationToken: ct);
+            await cacheInvalidator.InvalidateAsync(ct);
+            return Results.Ok(user.ToDto());
+        })
+        .WithSummary("Rename a user. Name is the entire mutable surface, so this is a full replacement.")
+        .Produces<UserDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        users.MapDelete("/{id:guid}", async (
+            Guid id,
+            CatalogService.CatalogServiceClient client,
+            InsightCacheInvalidator cacheInvalidator,
+            CancellationToken ct) =>
+        {
+            await client.DeleteUserAsync(new DeleteUserRequest { Id = id.ToString() }, cancellationToken: ct);
+            await cacheInvalidator.InvalidateAsync(ct);
+            return Results.NoContent();
+        })
+        .WithSummary("Delete a user. Rejected with 409 while the user holds open loans.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
 
         var insights = app.MapGroup("/insights").WithTags("Insights");
 

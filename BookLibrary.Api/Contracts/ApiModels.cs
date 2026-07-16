@@ -14,6 +14,10 @@ public sealed record CreateBookRequestDto(string Title, string Author, int PageC
 
 public sealed record DeleteBookResultDto(int ClosedLoans);
 
+public sealed record CreateUserRequestDto(string Name);
+
+public sealed record UpdateUserRequestDto(string Name);
+
 public sealed record MostBorrowedBookDto(BookDto Book, long BorrowCount);
 
 public sealed record TopBorrowerDto(UserDto User, long BorrowCount);

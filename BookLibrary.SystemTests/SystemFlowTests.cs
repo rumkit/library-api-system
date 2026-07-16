@@ -92,6 +92,54 @@ public class SystemFlowTests
     }
 
     [Test]
+    public async Task PostUser_ThenGetUser_ShouldRoundTrip()
+    {
+        var response = await Host.ApiClient.PostAsJsonAsync("/users", new { Name = "System Test User" });
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Created);
+        var created = (await response.Content.ReadFromJsonAsync<UserDto>(Json))!;
+        await Assert.That(response.Headers.Location!.ToString()).IsEqualTo($"/users/{created.Id}");
+
+        var fetched = await GetAsync<UserDto>($"/users/{created.Id}");
+        await Assert.That(fetched.Name).IsEqualTo("System Test User");
+
+        // Clean up: the AppHost fixture is shared across this class's tests.
+        await Host.ApiClient.DeleteAsync($"/users/{created.Id}");
+    }
+
+    [Test]
+    public async Task DeleteUser_WhenHoldingBook_ShouldReturn409ProblemDetails()
+    {
+        // Alice (SampleData.Users[0]) has a seeded open loan, so this must never actually delete her.
+        var response = await Host.ApiClient.DeleteAsync($"/users/{AliceId}");
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Conflict);
+        await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/problem+json");
+    }
+
+    [Test]
+    public async Task Users_WhenPagingWithCursor_ShouldEnumerateEverySeededUserExactlyOnce()
+    {
+        // Other tests in this shared-host class create/delete their own users concurrently, so
+        // assert a superset of the seeded ids rather than an exact count.
+        var seen = new HashSet<Guid>();
+        string? cursor = null;
+        CursorPage<UserDto>? page = null;
+        for (var i = 0; i < 1000 && (page is null || page.NextCursor is not null); i++)
+        {
+            var url = cursor is null
+                ? "/users?limit=10"
+                : $"/users?limit=10&cursor={Uri.EscapeDataString(cursor)}";
+            page = await GetAsync<CursorPage<UserDto>>(url);
+            foreach (var u in page.Items)
+                seen.Add(u.Id);
+            cursor = page.NextCursor;
+        }
+
+        await Assert.That(SampleData.Users.Select(u => u.Id).All(seen.Contains)).IsTrue();
+    }
+
+    [Test]
     public async Task MostBorrowed_ShouldRankCleanCodeFirst()
     {
         var result = await GetAsync<List<MostBorrowedDto>>("/insights/most-borrowed?limit=10");
