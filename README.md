@@ -104,6 +104,55 @@ Write rules (the CRUD surface, layered on top of the one-book-one-copy model —
 
 - **.NET 10 SDK** (`10.0.201`+)
 - **Docker** — required to run the app (MongoDB container) and every test tier except pure unit tests.
+  Podman works too — see [Using Podman instead of Docker](#using-podman-instead-of-docker) below.
+- **A trusted local HTTPS dev certificate** — Aspire's dashboard and resource-to-resource calls run
+  over HTTPS/h2c; if the cert isn't trusted, orchestration fails to start. See
+  [Trusting the HTTPS dev certificate](#trusting-the-https-dev-certificate) below if you hit this.
+
+#### Using Podman instead of Docker
+
+Aspire shells out to `docker` by default. If your machine has Podman instead, tell Aspire to use it
+by setting `ASPIRE_CONTAINER_RUNTIME=podman` before running the AppHost:
+
+```bash
+# macOS/Linux
+export ASPIRE_CONTAINER_RUNTIME=podman
+
+# Windows (PowerShell), persists for future sessions
+[System.Environment]::SetEnvironmentVariable("ASPIRE_CONTAINER_RUNTIME", "podman", "User")
+```
+
+Also make sure the Podman machine/socket is running (`podman machine start` on macOS/Windows) before
+`dotnet run --project BookLibrary.AppHost` — Aspire talks to it the same way it would talk to Docker.
+
+#### Trusting the HTTPS dev certificate
+
+Aspire's dashboard and the inter-resource HTTPS endpoints rely on the standard ASP.NET Core
+localhost dev certificate. If it isn't trusted, `dotnet run --project BookLibrary.AppHost` fails
+during startup (or the dashboard/resources fail their health checks) instead of running cleanly.
+Aspire's own docs point at the `aspire` CLI (`aspire run`, which trusts the cert for you) — but you
+don't need that CLI installed; the plain .NET SDK can trust the same certificate directly:
+
+```bash
+dotnet dev-certs https --trust
+```
+
+- **Windows/macOS**: this installs the cert into the OS trust store and just works; you'll get a
+  one-time confirmation prompt.
+- **Linux**: there's no OS-wide trust store integration, so `--trust` alone isn't enough. Export the
+  cert and trust it in your browser/distro's store manually, e.g. on Ubuntu/Debian:
+  ```bash
+  dotnet dev-certs https -ep ~/aspnet-dev-cert.crt --format PEM
+  sudo cp ~/aspnet-dev-cert.crt /usr/local/share/ca-certificates/aspnet-dev-cert.crt
+  sudo update-ca-certificates
+  ```
+  then re-import that same cert into your browser's certificate store if the browser doesn't read
+  the system one.
+- Running inside **WSL2**: the cert must be generated and trusted *inside* WSL2 (it's a separate
+  filesystem/cert store from Windows), even though the AppHost eventually opens a Windows browser.
+
+Run `dotnet dev-certs https --check --trust` afterwards to confirm it's picked up before retrying
+`dotnet run --project BookLibrary.AppHost`.
 
 ### Start everything
 
