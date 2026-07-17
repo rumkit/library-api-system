@@ -1,18 +1,16 @@
 using System.Globalization;
-using JetBrains.Annotations;
 
 namespace BookLibrary.WarmUp;
 
-[PublicAPI]
-public class Tasks
+public sealed class Tasks
 {
     // BCL already has the BitOperations.IsPow2() method, which would be better for a real-world scenario
     public static bool IsPowerOfTwo(int id)
         => (id & (id - 1)) == 0 && id > 0;
-    
-    // If the input string is in UTF-8, or we can guarantee all chars are single-byte,
+
+    // If the input string is UTF-8, or we can guarantee all chars are single-byte,
     // then such an overengineering is not needed and the title.Reverse() will do.
-    // See ReverseTitle_WhenTitleContainsCombiningDiacritic_ShouldKeepAccentedLetterIntact()
+    // See ReverseTitle_WhenTitleContainsCombiningDiacritic_ShouldKeepAccentedLetterIntact() test
     public static string ReverseTitle(string title)
         => string.Create(title.Length, title, static (span, source) =>
         {

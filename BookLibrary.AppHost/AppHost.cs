@@ -2,6 +2,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // MongoDB container + the "library" database used by the Catalog backend and the seeder.
 var mongo = builder.AddMongoDB("mongo")
+    .WithDataVolume("mongo-data")
     .WithMongoExpress();
 var library = mongo.AddDatabase("library");
 

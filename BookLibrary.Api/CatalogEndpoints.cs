@@ -28,6 +28,15 @@ public static class CatalogEndpoints
 
     public static IEndpointRouteBuilder MapCatalogEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapBooks();
+        app.MapUsers();
+        app.MapLoans();
+        app.MapInsights();
+        return app;
+    }
+
+    private static void MapBooks(this IEndpointRouteBuilder app)
+    {
         var books = app.MapGroup("/books").WithTags("Books");
 
         books.MapGet("/", async (
@@ -92,7 +101,10 @@ public static class CatalogEndpoints
         .WithSummary("Delete a book. Any open loan on it is force-closed (lost-book flow).")
         .Produces<DeleteBookResultDto>()
         .ProducesProblem(StatusCodes.Status404NotFound);
+    }
 
+    private static void MapUsers(this IEndpointRouteBuilder app)
+    {
         var users = app.MapGroup("/users").WithTags("Users");
 
         users.MapGet("/", async (
@@ -169,7 +181,10 @@ public static class CatalogEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
+    }
 
+    private static void MapLoans(this IEndpointRouteBuilder app)
+    {
         var loans = app.MapGroup("/loans").WithTags("Loans");
 
         loans.MapGet("/", async (
@@ -249,7 +264,10 @@ public static class CatalogEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
+    }
 
+    private static void MapInsights(this IEndpointRouteBuilder app)
+    {
         var insights = app.MapGroup("/insights").WithTags("Insights");
 
         insights.MapGet("/most-borrowed", async (
@@ -360,7 +378,5 @@ public static class CatalogEndpoints
         })
         .WithSummary("Books co-borrowed by users who borrowed the given book.")
         .WithDescription(LimitDescription);
-
-        return app;
     }
 }

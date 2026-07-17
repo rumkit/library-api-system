@@ -150,7 +150,7 @@ Conventions:
 
 - **.NET 10 SDK** (`10.0.201`+)
 - **Docker** — required for the Mongo container and for every test tier except unit tests.
-  Podman works too (below).
+  Podman works too (see [below](#using-podman-instead-of-docker) ).
 - **A trusted HTTPS dev certificate** — Aspire needs it to start (below).
 
 ### Start everything
